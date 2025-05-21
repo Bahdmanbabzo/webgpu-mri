@@ -31,22 +31,19 @@ export default class Engine {
         return device;
     }
 
-    encodeRenderPass(pipeline, bindGroup, vertexBuffer) {
+    encodeRenderPass() {
         const commandEncoder = this.device.createCommandEncoder();
         const renderPassDescriptor = {
             colorAttachments: [{
                 view: this.canvasContext.getCurrentTexture().createView(),
-                loadValue: [0.0, 0.0, 0.0, 1.0],
+                clearValue: [1.0, 0.0, 0.0, 1.0],
+                loadOp: 'clear',
                 storeOp: 'store',
             }],
         };
 
         const renderPass = commandEncoder.beginRenderPass(renderPassDescriptor);
-        renderPass.setPipeline(pipeline);
-        renderPass.setBindGroup(0, bindGroup);
-        renderPass.setVertexBuffer(0, vertexBuffer);
-        renderPass.draw(3, 1, 0, 0);
-        renderPass.end();
+        renderPass.end(); 
 
         return commandEncoder.finish();
     }

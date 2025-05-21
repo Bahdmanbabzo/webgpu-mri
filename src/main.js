@@ -1,8 +1,10 @@
 import Engine from './engine/engine.js';
 
-export default function webgpu() {
+export default async function webgpu() {
   const canvas = document.querySelector('canvas');
-  const engine  = Engine.initialize(canvas);
+  const engine  = await Engine.initialize(canvas);
+  const commandBuffer = engine.encodeRenderPass();
+  await engine.submitCommand(commandBuffer);
 }
 
 webgpu(); 
