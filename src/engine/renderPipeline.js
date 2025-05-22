@@ -1,7 +1,6 @@
 export class RenderPipelineBuilder {
     constructor(device) {
         this.device = device;
-        // Initialize with common defaults, potentially matching your project's typical setup
         this.descriptor = {
             vertex: {
                 entryPoint: "vs_main",
@@ -13,13 +12,12 @@ export class RenderPipelineBuilder {
             },
             primitive: {
                 topology: "triangle-list",
-                cullMode: "none",    // Based on your previous context
-                frontFace: "cw",     // Based on your previous context
+                cullMode: "none", 
+                frontFace: "cw",  
             },
             multisample: {
-                count: 4,            // Assuming 4x MSAA is common for you
+                count: 1,    
             },
-            // depthStencil will be added if setDepthStencil is called with a format
         };
     }
 
@@ -78,7 +76,7 @@ export class RenderPipelineBuilder {
         return this;
     }
 
-    setMultisample(count = 4) { // Defaulting to 4 as per your MSAA setup
+    setMultisample(count = 1) {
         this.descriptor.multisample.count = count;
         return this;
     }

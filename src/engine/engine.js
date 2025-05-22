@@ -31,7 +31,7 @@ export default class Engine {
         return device;
     }
 
-    encodeRenderPass() {
+    encodeRenderPass(drawCount, pipeLine, vertexBuffer) {
         const commandEncoder = this.device.createCommandEncoder();
         const renderPassDescriptor = {
             colorAttachments: [{
@@ -43,6 +43,9 @@ export default class Engine {
         };
 
         const renderPass = commandEncoder.beginRenderPass(renderPassDescriptor);
+        renderPass.setPipeline(pipeLine);
+        renderPass.setVertexBuffer(0, vertexBuffer);
+        renderPass.draw(drawCount, 1, 0, 0); // drawCount is the number of vertices to draw
         renderPass.end(); 
 
         return commandEncoder.finish();
