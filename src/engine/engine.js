@@ -45,7 +45,7 @@ export default class Engine {
         const renderPass = commandEncoder.beginRenderPass(renderPassDescriptor);
         renderPass.setPipeline(pipeLine);
         renderPass.setVertexBuffer(0, vertexBuffer);
-        renderPass.draw(drawCount, 1, 0, 0); // drawCount is the number of vertices to draw
+        renderPass.draw(drawCount, 1, 0, 0);
         renderPass.end(); 
 
         return commandEncoder.finish();
