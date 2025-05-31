@@ -6,6 +6,8 @@ export default async function webgpu() {
   const canvas = document.querySelector('canvas');
   const engine  = await Engine.initialize(canvas);
   const device = engine.device;
+  const image = await fetch('/sub-01/anat/sub-01_T1w.nii.gz'); 
+  console.log(image); 
   const triangleData = new Float32Array([
     0.0,  0.5, 0.0, // Vertex 1
    -0.5, -0.5, 0.0, // Vertex 2
