@@ -1,7 +1,7 @@
 import Engine from './engine/engine.js';
 import { RenderPipelineBuilder } from './engine/renderPipeline.js';
 import triangleShaderCode from './shaders/triangle.wgsl?raw'
-import loadNiftiFile from './utils/niiLoader.js';
+import {loadNiftiFile, processNiftiData} from './utils/niiLoader.js';
 
 export default async function webgpu() {
   const canvas = document.querySelector('canvas');
@@ -9,7 +9,9 @@ export default async function webgpu() {
   const device = engine.device;
 
   // Load a NIfTI file
-  loadNiftiFile('/sub-01/anat/sub-01_T1w.nii.gz')
+  const rawData = await loadNiftiFile('/sub-01/anat/sub-01_T1w.nii.gz'); 
+  const headerProcessed = processNiftiData(rawData.header);
+  console.log('Processed NIfTI Data:', headerProcessed);
   
   const triangleData = new Float32Array([
     0.0,  0.5, 0.0, // Vertex 1
