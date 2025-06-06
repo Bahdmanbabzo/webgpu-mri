@@ -45,6 +45,7 @@ export async function loadNiftiFile(filePath) {
     return {
         header: header,
         image: image,
+        voxelData: voxelData
     }
   }
 }
