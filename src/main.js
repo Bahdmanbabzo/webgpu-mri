@@ -11,6 +11,7 @@ export default async function webgpu() {
   // Load a NIfTI file
   const {header, voxelData} = await Helpers.loadNiftiFile('/sub-01/anat/sub-01_T1w.nii.gz'); 
   const [numDims, width, height, depth] = header.dims; 
+  const adjustedData = Helpers.pad(voxelData, width, height, depth);
 
   const volumeTexture = device.createTexture({
     size: [width, height, depth], 
@@ -21,8 +22,8 @@ export default async function webgpu() {
 
   device.queue.writeTexture(
     { texture: volumeTexture },
-    voxelData.buffer, 
-    { offset: 0, bytesPerRow:Helpers.alignToWebGPU(width * 2, 256), rowsPerImage: height }, 
+    adjustedData.paddedData, 
+    { offset: 0, bytesPerRow:adjustedData.alignedBytesPerRow, rowsPerImage: height }, 
     [width, height, depth]
   ); 
 

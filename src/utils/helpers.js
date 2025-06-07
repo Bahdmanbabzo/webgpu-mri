@@ -1,7 +1,8 @@
 import * as nifti from 'nifti-reader-js';
 export default class Helpers{
+
     static async loadNiftiFile(filePath) {
-    
+
         let voxelData; 
     
         const response = await fetch(filePath); 
@@ -10,7 +11,6 @@ export default class Helpers{
         }
     
         let arrayBuffer = await response.arrayBuffer();
-    
         if (nifti.isCompressed(arrayBuffer)) {
             const decompressed = nifti.decompress(arrayBuffer);
             console.log('Decompressed NIfTI data');
@@ -20,6 +20,7 @@ export default class Helpers{
         if (nifti.isNIFTI(arrayBuffer)) {
         const header = nifti.readHeader(arrayBuffer);
         const image = nifti.readImage(header, arrayBuffer);
+        console.log("This is the image", image);
         
         // Make typed array depending on dataType
         switch(header.datatypeCode) {
@@ -36,7 +37,8 @@ export default class Helpers{
                 voxelData = new Float32Array(image);
                 break;
         }
-        console.log("This is voxel buffer", voxelData);
+        console.log("This is voxel buffer", voxelData.buffer);
+        console.log("this is bytes", voxelData.BYTES_PER_ELEMENT); 
         console.log("This is the header", header);
         return {
             header: header,
@@ -69,9 +71,44 @@ export default class Helpers{
         }
     }; 
 
-    static alignToWebGPU(val, alignment) {
+    static alignToWebGPU(val, alignment = 256) {
         return Math.floor((val + alignment - 1) / alignment) * alignment;
     }; 
 
+    static pad(voxelData, width, height, depth) {
+        const bytesPerPixel = voxelData.BYTES_PER_ELEMENT;
+        const paddedWidth = this.alignToWebGPU(width * bytesPerPixel);
+        const extraSpace = paddedWidth - (width * bytesPerPixel);
 
+        if (extraSpace === 0) {
+            return {
+                paddedData: voxelData.buffer,
+                alignedBytesPerRow: paddedWidth,
+            };
+        }
+
+        const totalPaddedSize = paddedWidth * height * depth;
+        const paddedArray = new Int16Array(totalPaddedSize); 
+
+        let sourceOffset = 0 ; 
+        let paddedOffset = 0; 
+
+        for(let z = 0; z < depth; z++) {
+            for (let y = 0; y < height; y++) {
+                paddedArray.set(
+                    voxelData.subarray(sourceOffset, sourceOffset + (width * bytesPerPixel / 2)),
+                    paddedOffset
+                ); 
+            }
+
+            sourceOffset += width * bytesPerPixel / 2;
+            paddedOffset += paddedWidth / bytesPerPixel;
+        }
+
+        return {
+            paddedData: paddedArray.buffer, 
+            alignedBytesPerRow: paddedWidth
+        }
+    }
+   
 }
