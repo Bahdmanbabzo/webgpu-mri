@@ -1,7 +1,7 @@
 import Engine from './engine/engine.js';
 import { RenderPipelineBuilder } from './engine/renderPipeline.js';
-import triangleShaderCode from './shaders/triangle.wgsl?raw'
-import {loadNiftiFile, processNiftiData} from './utils/niiLoader.js';
+import Helpers from './utils/helpers.js';
+import triangleShaderCode from './shaders/triangle.wgsl?raw'; 
 
 export default async function webgpu() {
   const canvas = document.querySelector('canvas');
@@ -9,27 +9,25 @@ export default async function webgpu() {
   const device = engine.device;
 
   // Load a NIfTI file
-  const rawData = await loadNiftiFile('/sub-01/anat/sub-01_T1w.nii.gz'); 
-  const headerProcessed = processNiftiData(rawData.header);
-  console.log('Processed NIfTI Data:', headerProcessed);
-  
-  const triangleData = new Float32Array([
-    0.0,  0.5, 0.0, // Vertex 1
-   -0.5, -0.5, 0.0, // Vertex 2
-    0.5, -0.5, 0.0  // Vertex 3
-  ]);
-  const vertexBuffer = device.createBuffer({
-    label: "Dummy buffer", 
-    size: triangleData.byteLength,
-    usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+  const {header, voxelData} = await Helpers.loadNiftiFile('/sub-01/anat/sub-01_T1w.nii.gz'); 
+  const [numDims, width, height, depth] = header.dims; 
+
+  const volumeTexture = device.createTexture({
+    size: [width, height, depth], 
+    format: 'r16uint', 
+    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST, 
+    dimension: '3d'
   }); 
-  device.queue.writeBuffer(vertexBuffer, 0, triangleData);
-  const bufferLayout = {
-    arrayStride: 12, 
-    attributes: [
-      { format: "float32x3", offset: 0, shaderLocation: 0 },
-    ]
-  };
+
+  device.queue.writeTexture(
+    { texture: volumeTexture },
+    voxelData.buffer, 
+    { offset: 0, bytesPerRow:Helpers.alignToWebGPU(width * 2, 256), rowsPerImage: height }, 
+    [width, height, depth]
+  ); 
+
+  console.log("This is the volume texture", volumeTexture);
+  
   const shaderModule = device.createShaderModule({
     code: triangleShaderCode
   })
