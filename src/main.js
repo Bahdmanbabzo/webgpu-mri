@@ -9,7 +9,8 @@ export default async function webgpu() {
   const device = engine.device;
 
   // Load a NIfTI file
-  const {header, voxelData} = await Helpers.loadNiftiFile('/sub-01/anat/sub-01_T1w.nii.gz'); 
+  const {header, voxelData} = await Helpers.loadNiftiFile('/sub-001/anat/sub-001_T1w.nii.gz'); 
+  Helpers.processNiftiData(header);
   const [numDims, width, height, depth] = header.dims; 
   const adjustedData = Helpers.pad(voxelData, width, height, depth);
 
@@ -33,6 +34,26 @@ export default async function webgpu() {
     code: triangleShaderCode
   })
 
+  const bufferLayout = {
+    arrayStride: 3 * 4, 
+    attributes: [
+      {
+        shaderLocation:0, 
+        offset: 0, 
+        format: 'float32x3'
+      }
+    ]
+  }; 
+  const vertexData = new Float32Array([
+    0.0, 0.5, 0.0 , 
+    -0.5, -0.5, 0.0, 
+    0.5, -0.5, 0.0 
+  ]); 
+  const vertexBuffer = device.createBuffer({
+    size: vertexData.byteLength, 
+    usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST
+  }); 
+  device.queue.writeBuffer(vertexBuffer, 0, vertexData); 
   const pipelineBuilder = new RenderPipelineBuilder(device);
   const renderPipeline = pipelineBuilder
     .setPipelineLayout(device.createPipelineLayout({ bindGroupLayouts: [] }))

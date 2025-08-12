@@ -6,6 +6,7 @@ export default class Helpers{
         let voxelData; 
     
         const response = await fetch(filePath); 
+        console.log(response)
         if (!response.ok) {
             throw new Error(`Failed to fetch NIfTI file: ${response.statusText}`);
         }
@@ -21,6 +22,7 @@ export default class Helpers{
         const header = nifti.readHeader(arrayBuffer);
         const image = nifti.readImage(header, arrayBuffer);
         console.log("This is the image", image);
+        console.log("This is the header", header);
         
         // Make typed array depending on dataType
         switch(header.datatypeCode) {
@@ -36,6 +38,9 @@ export default class Helpers{
             case 16:
                 voxelData = new Float32Array(image);
                 break;
+            case 512: 
+                voxelData = new Uint16Array(image);
+                break; 
         }
         console.log("This is voxel buffer", voxelData.buffer);
         console.log("this is bytes", voxelData.BYTES_PER_ELEMENT); 
@@ -63,7 +68,7 @@ export default class Helpers{
             y: dims[2] * voxelSpacing.y,
             z: dims[3] * voxelSpacing.z
         }
-    
+        console.log('this is the physical size', physicalSize)
         return {
             voxelSpacing: voxelSpacing,
             physicalSize: physicalSize,
