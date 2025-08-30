@@ -7,6 +7,39 @@ import scipy.ndimage as ndi
 im = nib.load('public/sub-001/anat/sub-001_T1w.nii.gz')
 vol = im.get_fdata(dtype=np.float32)
 
+def sobel_filter(volume, slice_index=None):
+    """
+    Apply Sobel filter to a 2D slice of the volume
+    
+    Args:
+        volume: 3D numpy array
+        slice_index: which slice to use (default: middle slice)
+    """
+    if slice_index is None:
+        slice_index = volume.shape[2] // 2
+    
+    # Get 2D slice
+    im_slice = volume[:, :, slice_index]
+    
+    # Apply Sobel filter in x and y directions
+    sx = ndi.sobel(im_slice, axis=0, mode='constant')
+    sy = ndi.sobel(im_slice, axis=1, mode='constant')
+    
+    # Compute magnitude of gradient
+    sobel_mag = np.hypot(sx, sy)
+    
+    # Draw the image in color
+    plt.figure(figsize=(10, 8))
+    plt.imshow(sobel_mag, cmap='gray', vmin=0, vmax=1709)
+    plt.title(f'Sobel Filter Magnitude - Slice {slice_index}')
+    plt.axis('off')
+    plt.colorbar()
+    plt.tight_layout()
+    plt.show()
+    
+    return sobel_mag
+
+
 def detect_horizontal_edges(volume, slice_index=None):
     """
     Detect horizontal edges in a 2D slice of the volume
@@ -71,4 +104,5 @@ axes[1].set_title('Cumulative Distribution Function')
 
 # Call the edge detection function
 print("Detecting horizontal edges...")
-detect_horizontal_edges(vol)
+# detect_horizontal_edges(vol)
+sobel_filter(vol); 
