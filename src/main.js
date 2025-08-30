@@ -1,7 +1,7 @@
 import Engine from './engine/engine.js';
 import { RenderPipelineBuilder } from './engine/renderPipeline.js';
 import Helpers from './utils/helpers.js';
-import triangleShaderCode from './shaders/triangle.wgsl?raw'; 
+import raytracerShaderCode from './shaders/raytracer.wgsl?raw'; 
 
 export default async function webgpu() {
   const canvas = document.querySelector('canvas');
@@ -31,7 +31,7 @@ export default async function webgpu() {
   console.log("This is the volume texture", volumeTexture);
   
   const shaderModule = device.createShaderModule({
-    code: triangleShaderCode
+    code: raytracerShaderCode
   })
 
   const bufferLayout = {
@@ -44,11 +44,17 @@ export default async function webgpu() {
       }
     ]
   }; 
+
+  // Fullscreen quad
   const vertexData = new Float32Array([
-    0.0, 0.5, 0.0 , 
-    -0.5, -0.5, 0.0, 
-    0.5, -0.5, 0.0 
-  ]); 
+      // x,    y
+      -1.0, -1.0, 
+      1.0, -1.0, 
+      -1.0,  1.0, 
+      -1.0,  1.0, 
+      1.0, -1.0, 
+      1.0,  1.0 
+    ]);
   const vertexBuffer = device.createBuffer({
     size: vertexData.byteLength, 
     usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST
