@@ -2,6 +2,7 @@ export class RenderPipelineBuilder {
     constructor(device) {
         this.device = device;
         this.descriptor = {
+            layout: "auto",
             vertex: {
                 entryPoint: "vs_main",
                 buffers: []

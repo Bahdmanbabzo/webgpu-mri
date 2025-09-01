@@ -8,10 +8,10 @@ export default async function webgpu() {
   const engine  = await Engine.initialize(canvas);
   const device = engine.device;
 
+  // Set up canvas dimensions to match window dimensions
   const devicePixelRatio = window.devicePixelRatio || 1;
   canvas.width = window.innerWidth * devicePixelRatio;
   canvas.height = window.innerHeight * devicePixelRatio ;
-
   canvas.style.width = `${window.innerWidth}px`;
   canvas.style.height = `${window.innerHeight}px`;
 
@@ -36,18 +36,29 @@ export default async function webgpu() {
   ); 
 
   console.log("This is the volume texture", volumeTexture);
-  
+
+  const maxIntensity = voxelData.reduce((max, v) => Math.max(max, v), 0);
+  const invMax = 1.0 / maxIntensity; 
+  console.log('this is the max intensity', maxIntensity);
+
+  const params = new Float32Array([width, height, depth, invMax]);
+  const paramBuffer = device.createBuffer({
+    size: 16,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+  });
+  device.queue.writeBuffer(paramBuffer, 0, params);
+
   const shaderModule = device.createShaderModule({
     code: raytracerShaderCode
   })
 
   const bufferLayout = {
-    arrayStride: 3 * 4, 
+    arrayStride: 2 * 4, 
     attributes: [
       {
         shaderLocation:0, 
         offset: 0, 
-        format: 'float32x3'
+        format: 'float32x2'
       }
     ]
   }; 
@@ -69,13 +80,21 @@ export default async function webgpu() {
   device.queue.writeBuffer(vertexBuffer, 0, vertexData); 
   const pipelineBuilder = new RenderPipelineBuilder(device);
   const renderPipeline = pipelineBuilder
-    .setPipelineLayout(device.createPipelineLayout({ bindGroupLayouts: [] }))
     .setShaderModule(shaderModule)
     .setVertexBuffers([bufferLayout])
     .setTargetFormats([engine.canvasFormat])
     .setPrimitive("triangle-list")
     .build()
-  const commandBuffer = engine.encodeRenderPass(3, renderPipeline, vertexBuffer);
+
+  const bindGroupLayouts = renderPipeline.getBindGroupLayout(0); 
+  const bindGroup = device.createBindGroup({
+    layout: bindGroupLayouts, 
+    entries: [
+      { binding: 0, resource: volumeTexture.createView()}, 
+      { binding: 1, resource: paramBuffer }
+    ]
+  })
+  const commandBuffer = engine.encodeRenderPass(6, renderPipeline, vertexBuffer, bindGroup);
   await engine.submitCommand(commandBuffer);
 }
 
