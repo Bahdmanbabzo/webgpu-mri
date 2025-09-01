@@ -22,11 +22,11 @@ fn vs_main(@location(0) position: vec2f) -> VertexOutput {
 fn fs_main(input: VertexOutput) -> @location(0) vec4f {
     let dims = textureDimensions(volumeTexture);
     let coords = vec3u(
-        u32(input.uv.x * f32(dims.x)), 
-        u32(input.uv.y * f32(dims.y)), 
-        u32(f32(dims.z) * 0.4) 
-    ); 
-    
+        u32(clamp(input.uv.x * f32(dims.x), 0.0, f32(dims.x - 1u))), // Max = 255, not 256
+        u32(clamp(input.uv.y * f32(dims.y), 0.0, f32(dims.y - 1u))), 
+        u32(f32(dims.z) * 0.4)
+    );
+
     let rawValue = textureLoad(volumeTexture, coords, 0).r;
     let normalized = f32(rawValue) * params.invMax;
     
