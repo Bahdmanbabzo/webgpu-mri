@@ -41,9 +41,9 @@ export default async function webgpu() {
   const invMax = 1.0 / maxIntensity; 
   console.log('this is the max intensity', maxIntensity);
 
-  const params = new Float32Array([width, height, depth, invMax]);
+  const params = new Float32Array([invMax]);
   const paramBuffer = device.createBuffer({
-    size: 16,
+    size:4,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
   });
   device.queue.writeBuffer(paramBuffer, 0, params);

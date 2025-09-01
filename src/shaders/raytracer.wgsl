@@ -1,12 +1,9 @@
 struct VertexOutput {
     @builtin(position) position: vec4f, 
-    @location(0) uv: vec2f  // Changed from texCoords to uv
+    @location(0) uv: vec2f
 }
 
 struct Params {
-    width: f32, 
-    height: f32, 
-    depth: f32, 
     invMax: f32 
 }
 
@@ -23,12 +20,14 @@ fn vs_main(@location(0) position: vec2f) -> VertexOutput {
 
 @fragment 
 fn fs_main(input: VertexOutput) -> @location(0) vec4f {
-    // Sample the volume texture
-    let x = u32(clamp(floor(input.uv.x * params.width), 0.0, params.width - 1.0));
-    let y = u32(clamp(floor(input.uv.y * params.height), 0.0, params.height - 1.0));
-    let z = u32(params.depth * 0.4); // Middle slice
+    let dims = textureDimensions(volumeTexture);
+    let coords = vec3u(
+        u32(input.uv.x * f32(dims.x)), 
+        u32(input.uv.y * f32(dims.y)), 
+        u32(f32(dims.z) * 0.4) 
+    ); 
     
-    let rawValue = textureLoad(volumeTexture, vec3u(x, y, z), 0).r;
+    let rawValue = textureLoad(volumeTexture, coords, 0).r;
     let normalized = f32(rawValue) * params.invMax;
     
     return vec4f(normalized, normalized, normalized, 1.0);
