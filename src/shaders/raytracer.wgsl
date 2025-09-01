@@ -24,14 +24,29 @@ fn sampleVolume(coord: vec3u) -> f32 {
     return normalised;
 }
 
-fn computeGradient(coord: vec3u) -> vec3f {
+fn computeGradient(coord: vec3u, textureDims: vec3u) -> vec3f {
+    var dx: f32;
+    var dy: f32; 
+    var dz: f32;
     // f(x) = x^2
-    let dx = sampleVolume(coord + vec3u(1u, 0u, 0u)) - sampleVolume(coord - vec3u(1u, 0u, 0u));
-    let dy = sampleVolume(coord + vec3u(0u, 1u, 0u)) - sampleVolume(coord - vec3u(0u, 1u, 0u));
-    let dz = sampleVolume(coord + vec3u(0u, 0u, 1u)) - sampleVolume(coord - vec3u(0u, 0u, 1u));
+    if (coord.x == 0u || coord.x >= textureDims.x - 1u) {
+        dx = 0.0;
+    } else {
+        dx = sampleVolume(coord + vec3u(1u, 0u, 0u)) - sampleVolume(coord - vec3u(1u, 0u, 0u));
+    };
+    if (coord.y == 0u || coord.y >= textureDims.y - 1u) {
+       dy = 0.0;
+    } else {
+        dy = sampleVolume(coord + vec3u(0u, 1u, 0u)) - sampleVolume(coord - vec3u(0u, 1u, 0u));
+    };
+    if (coord.z == 0u || coord.z >= textureDims.z - 1u) {
+        dz = 0.0;
+    } else {
+        dz = sampleVolume(coord + vec3u(0u, 0u, 1u)) - sampleVolume(coord - vec3u(0u, 0u, 1u));
+    };
     let stepSize: f32 = 2.0; // f(x) = x^2
-    let scale: f32 = 1.0 / stepSize; // Stepsize replica for vector use. 
-    return vec3f(dx, dy, dz) * scale; 
+    let scale: f32 = 1.0 / stepSize; // Stepsize replica for vector use.
+    return vec3f(dx, dy, dz) * scale;
 }
 @fragment 
 fn fs_main(input: VertexOutput) -> @location(0) vec4f {
@@ -42,7 +57,7 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4f {
         u32(f32(dims.z) * 0.4)
     );
 
-    let gradient = computeGradient(coords);
+    let gradient = computeGradient(coords, dims);
     let gradientMagnitude = length(gradient);
     return vec4f(gradientMagnitude, gradientMagnitude, gradientMagnitude, 1.0);
 }
