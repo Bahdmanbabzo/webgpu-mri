@@ -24,46 +24,39 @@ fn sampleVolume(coord: vec3u) -> f32 {
     return f32(rawValue);
 }
 
-fn mapToColor(intensity: f32, gradient: f32, curvature: f32) -> vec4f {
+fn mapToColor(intensity: f32, gradientMagnitude: f32, curvature: f32) -> vec4f {
     var color: vec4f;
 
     let rawIntensity = intensity; // Assume max ~1709
 
-    // OUTSIDE anatomical range → grayscale
-    if (rawIntensity < 150.0 || rawIntensity > 1200.0) {
-        color = vec4f(intensity * 0.4, intensity * 0.4, intensity * 0.4, 0.2); // Dim gray
-    }
-
-    // CSF or ventricles (150–300) with low gradient
-    else if (rawIntensity < 300.0 && gradient < 200.0) {
-        color = vec4f(0.9, 0.6, 1.0, 0.7); // Soft blue
-    }
-
-    // Gray matter (300–600) with soft transitions
-    else if (rawIntensity >= 300.0 && rawIntensity < 600.0 && gradient < 300.0) {
-        color = vec4f(0.0, 1.0, 0.0, 1.0); // Mint green
-    }
-
-    // White matter (600–900) with moderate gradient
-    else if (rawIntensity >= 600.0 && rawIntensity < 900.0 && gradient < 400.0) {
-        color = vec4f(1.0, 0., 0.0, 1.0); // Pale yellow
-    }
-
-    // High gradient (400–700) → tissue boundaries (e.g., corpus callosum edges)
-    else if (gradient >= 400.0 && gradient < 700.0) {
-        color = vec4f(1.0, 0.5, 0.0, 1.0); // Orange
-    }
-
-    // Very high gradient (≥700) → sharp transitions or pathology
-    else if (gradient >= 700.0) {
-        // Use curvature to differentiate:
-        if (curvature < -300.0) {
-            color = vec4f(0.0, 0.0, 1.0, 1.0); // Deep blue → concave (ventricle edges, sulci)
-        } else if (curvature > 300.0) {
-            color = vec4f(1.0, 0.0, 0.0, 1.0); // Red → convex (lesions, gyri)
+    // Accurately draws around the boundary of the volume
+    // Anything that is not brain tissue
+    if (rawIntensity >= 0.0 && rawIntensity < 90) {
+        color = vec4f(0.0, 0.0, 0.0, 1.0); 
+    } 
+    else if (gradientMagnitude >= 50.0) {
+        if (curvature > 0.0) {
+            // High positive curvature (convex regions)
+            color = vec4f(1.0, 1.0, 0.0, 1.0); // Yellow for convex
         } else {
-            color = vec4f(1.0, 1.0, 0.0, 1.0); // Yellow → neutral sharp edge
+            // High negative curvature (concave regions)
+            color = vec4f(0.0, 1.0, 1.0, 1.0); // Cyan for concave
         }
+    }
+    else if (rawIntensity >= 90 && rawIntensity < 200) {
+        // Probably csf range 
+        // Third ventricle was clearly visible at slide 0.65
+        color = vec4f(0.0, 0.0, 1.0, 1.0); 
+    } else if (rawIntensity >=200 && rawIntensity < 300) { // Probably gray matter range
+        color = vec4f(0.0, 1.0, 0.0, 1.0);
+    } else if (rawIntensity >= 300 && rawIntensity < 400) { // Probably white matter range
+        color = vec4f(1.0, 0.5, 0.8, 1.0); 
+    } else if (rawIntensity >= 400 && rawIntensity < 600) { // Probably white matter range
+        color = vec4f(1.0, 0.0, 1.0, 1.0); 
+    } else if (rawIntensity >= 600 && rawIntensity < 800) { // Probably white matter range
+        color = vec4f(0.0, 1.0, 1.0, 1.0); 
+    } else if (rawIntensity >= 800 && rawIntensity < 1200) { // Probably white matter range
+        color = vec4f(1.0, 1.0, 1.0, 1.0); 
     }
 
     // Default fallback
@@ -100,11 +93,7 @@ fn computeFirstDerivative(coord: vec3u, textureDims: vec3u) -> vec3f {
 
 
 fn computeSecondDerivative(coord: vec3u, textureDims: vec3u, gradientVec: vec3f) -> f32 {
-    let gradMag = length(gradientVec);
-    if (gradMag < 1e-5) {
-        return 0.0;
-    }
-    let g_hat = gradientVec / gradMag;
+    let g_hat = normalize(gradientVec); 
 
     var dxx: f32;
     var dyy: f32;
@@ -114,6 +103,9 @@ fn computeSecondDerivative(coord: vec3u, textureDims: vec3u, gradientVec: vec3f)
     var f_yz: f32;
 
     // Second partials (central differences)
+    // Recall f''(x) = 2
+    // f(x + 1) -2f(x) + f(x - 1)
+    // Again central differences to give more accurate descriptions
     if (coord.x > 0u && coord.x < textureDims.x - 1u) {
         dxx = sampleVolume(coord + vec3u(1u, 0u, 0u)) - (2.0 * sampleVolume(coord)) + sampleVolume(coord - vec3u(1u, 0u, 0u));
     } else {
@@ -130,7 +122,9 @@ fn computeSecondDerivative(coord: vec3u, textureDims: vec3u, gradientVec: vec3f)
         dzz = 0.0;
     }
 
-    // Mixed partials (central differences) - BUG FIXED
+    // Mixed partials (central differences)
+    // Recall f(x + 1, y + 1) - f( x + 1, y - 1) - f( x - 1, y + 1) + f(x - 1, y - 1)
+    // More accurate to do this as opposed to just forward/backward approach
     if (coord.x > 0u && coord.x < textureDims.x - 1u && coord.y > 0u && coord.y < textureDims.y - 1u) {
        f_xy = (
             sampleVolume(vec3u(coord.x + 1u, coord.y + 1u, coord.z))
@@ -174,7 +168,6 @@ fn computeSecondDerivative(coord: vec3u, textureDims: vec3u, gradientVec: vec3f)
 
     return curvature;
 }
-// ...existing code...
 @fragment
 fn fs_main(input: VertexOutput) -> @location(0) vec4f {
     let dims = textureDimensions(volumeTexture);
@@ -192,9 +185,9 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4f {
     // --- TEMPORARY DEBUGGING ---
     // Visualize the curvature directly. You may need to adjust the multiplier.
     // Positive curvature will be bright, negative will be dark.
-    let curvatureVis = curvature * 0.0007 + 0.2;
-    return vec4f(curvatureVis, curvatureVis, curvatureVis, 1.0);
+    //let curvatureVis = curvature * 0.0007 + 0.2;
+    //return vec4f(curvatureVis, curvatureVis, curvatureVis, 1.0);
     // ---------------------------
 
-    // return mapToColor(intensity, gradientMagnitude, curvature); // Comment this out for now
+    return mapToColor(intensity, gradientMagnitude, curvature);
 }
