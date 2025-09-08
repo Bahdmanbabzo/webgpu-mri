@@ -7,102 +7,70 @@ import scipy.ndimage as ndi
 im = nib.load('public/sub-001/anat/sub-001_T1w.nii.gz')
 vol = im.get_fdata(dtype=np.float32)
 
-def sobel_filter(volume, slice_index=None):
+def plot_directional_derivatives(volume, slice_index=None):
     """
-    Apply Sobel filter to a 2D slice of the volume
-    
-    Args:
-        volume: 3D numpy array
-        slice_index: which slice to use (default: middle slice)
+    Plots a joint histogram (scatter plot) of intensity, gradient magnitude,
+    and the second directional derivative along the gradient direction.
     """
     if slice_index is None:
         slice_index = volume.shape[2] // 2
-    
+
     # Get 2D slice
     im_slice = volume[:, :, slice_index]
-    
-    # Apply Sobel filter in x and y directions
-    sx = ndi.sobel(im_slice, axis=0, mode='constant')
-    sy = ndi.sobel(im_slice, axis=1, mode='constant')
-    
-    # Compute magnitude of gradient
-    sobel_mag = np.hypot(sx, sy)
-    
-    # Draw the image in color
-    plt.figure(figsize=(10, 8))
-    plt.imshow(sobel_mag, cmap='gray', vmin=0, vmax=1709)
-    plt.title(f'Sobel Filter Magnitude - Slice {slice_index}')
-    plt.axis('off')
-    plt.colorbar()
+
+    # Compute first derivatives (gradient)
+    gx = ndi.sobel(im_slice, axis=0, mode='constant')
+    gy = ndi.sobel(im_slice, axis=1, mode='constant')
+    gradient = np.stack([gx, gy], axis=-1)
+    grad_mag = np.linalg.norm(gradient, axis=-1)
+
+    # Compute normalized gradient direction (avoid division by zero)
+    grad_dir = np.zeros_like(gradient)
+    nonzero = grad_mag > 1e-5
+    grad_dir[nonzero] = gradient[nonzero] / grad_mag[nonzero][..., None]
+
+    # Compute Hessian matrix components
+    dxx = ndi.correlate(im_slice, np.array([[1, -2, 1]]), mode='constant')
+    dyy = ndi.correlate(im_slice, np.array([[1], [-2], [1]]), mode='constant')
+    dxy = ndi.correlate(im_slice, np.array([[1, -1], [-1, 1]]) * 0.25, mode='constant')
+
+    # For each pixel, compute g^T H g / |g|^2 (second directional derivative)
+    D2g = np.zeros_like(im_slice)
+    for y in range(im_slice.shape[0]):
+        for x in range(im_slice.shape[1]):
+            g = grad_dir[y, x]
+            if np.linalg.norm(g) < 1e-5:
+                D2g[y, x] = 0
+                continue
+            # Hessian at (y, x)
+            H = np.array([[dxx[y, x], dxy[y, x]],
+                          [dxy[y, x], dyy[y, x]]])
+            D2g[y, x] = g @ H @ g
+
+    # Flatten arrays for plotting
+    intensities = im_slice.flatten()
+    grad_mags = grad_mag.flatten()
+    D2g_flat = D2g.flatten()
+
+    # Mask out background
+    mask = grad_mags > 1e-3
+    intensities = intensities[mask]
+    grad_mags = grad_mags[mask]
+    D2g_flat = D2g_flat[mask]
+
+    # Scatter plot: Intensity vs Gradient Magnitude, colored by D2g
+    plt.figure(figsize=(10, 7))
+    sc = plt.scatter(intensities, grad_mags, c=D2g_flat, cmap='coolwarm', s=2, alpha=0.5)
+    plt.xlabel('Intensity')
+    plt.ylabel('Gradient Magnitude')
+    plt.title('Joint Histogram: Intensity vs Gradient Magnitude\nColor = 2nd Directional Derivative')
+    plt.colorbar(sc, label='Second Directional Derivative')
+    plt.grid(True, alpha=0.3)
     plt.tight_layout()
     plt.show()
-    
-    return sobel_mag
 
-
-def detect_horizontal_edges(volume, slice_index=None):
-    """
-    Detect horizontal edges in a 2D slice of the volume
-    
-    Args:
-        volume: 3D numpy array
-        slice_index: which slice to use (default: middle slice)
-    """
-    if slice_index is None:
-        slice_index = volume.shape[2] // 2
-    
-    # Get 2D slice
-    im_slice = volume[:, :, slice_index]
-    
-    # Set weights to detect horizontal edges (left to right)
-    weights = [[-1, 0, 1],
-               [-1, 0, 1],
-               [-1, 0, 1]]
-    
-    # Convolve slice with filter weights
-    edges = ndi.convolve(im_slice, weights)
-    
-    # Draw the image in color
-    plt.figure(figsize=(10, 8))
-    plt.imshow(edges, cmap='seismic', vmin=-150, vmax=150)
-    plt.title(f'Horizontal Edges (Left to Right) - Slice {slice_index}')
-    plt.axis('off')
-    plt.colorbar()
-    plt.tight_layout()
-    plt.show()
-    
-    return edges
-
-# Apply mask to exclude low-intensity background
-mask = vol > 100
-masked_data = vol[mask]
-
-# Compute raw histogram using numpy
-counts, bin_edges = np.histogram(vol, bins=256, range=(masked_data.min(), masked_data.max()))
-
-# Compute cumulative distribution function (CDF)
-cdf = np.cumsum(counts)
-cdf = cdf / cdf[-1]  # Normalize to [0, 1]
-
-# Plot raw histogram and CDF
-fig, axes = plt.subplots(2, 1, sharex=True, figsize=(10, 6))
-
-# Histogram (raw counts)
-axes[0].bar(bin_edges[:-1], counts, width=np.diff(bin_edges), align='edge', color='steelblue')
-axes[0].set_ylabel('Raw Count')
-axes[0].set_title('Histogram of Voxel Intensities')
-axes[0].set_xticks(np.linspace(0, 1709, num=10))
-
-# CDF
-axes[1].plot(bin_edges[:-1], cdf, color='darkorange')
-axes[1].set_ylabel('Cumulative Frequency')
-axes[1].set_xlabel('Intensity Value')
-axes[1].set_title('Cumulative Distribution Function')
-
-# plt.tight_layout()
-# plt.show()
-
-# Call the edge detection function
-print("Detecting horizontal edges...")
-# detect_horizontal_edges(vol)
-sobel_filter(vol); 
+# Add this at the end of your main.py to run:
+print("\n" + "="*80)
+print("DIRECTIONAL DERIVATIVE SCATTER PLOT")
+print("="*80)
+plot_directional_derivatives(vol)
