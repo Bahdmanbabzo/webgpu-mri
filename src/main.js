@@ -9,11 +9,11 @@ export default async function webgpu() {
   const device = engine.device;
 
   // Set up canvas dimensions to match window dimensions
-  const devicePixelRatio = window.devicePixelRatio || 1;
-  canvas.width = window.innerWidth * devicePixelRatio;
-  canvas.height = window.innerHeight * devicePixelRatio ;
-  canvas.style.width = `${window.innerWidth}px`;
-  canvas.style.height = `${window.innerHeight}px`;
+  // const devicePixelRatio = window.devicePixelRatio || 1;
+  // canvas.width = window.innerWidth * devicePixelRatio;
+  // canvas.height = window.innerHeight * devicePixelRatio ;
+  // canvas.style.width = `${window.innerWidth}px`;
+  // canvas.style.height = `${window.innerHeight}px`;
 
   // Load a NIfTI file
   const {header, voxelData} = await Helpers.loadNiftiFile('/sub-001/anat/sub-001_T1w.nii.gz'); 
