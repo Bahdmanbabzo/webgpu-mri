@@ -4,7 +4,8 @@ struct VertexOutput {
 }
 
 struct Params {
-    invMax: f32 
+    invMax: f32, 
+    fov: f32,
 }
 
 @group(0) @binding(0) var volumeTexture: texture_3d<u32>; 
@@ -93,7 +94,11 @@ fn computeFirstDerivative(coord: vec3u, textureDims: vec3u) -> vec3f {
 
 
 fn computeSecondDerivative(coord: vec3u, textureDims: vec3u, gradientVec: vec3f) -> f32 {
-    let g_hat = normalize(gradientVec); 
+    let gradMag = length(gradientVec);
+    if (gradMag < 1e-5) {
+        return 0.0; // Avoid division by zero
+    }
+    let g_hat = gradientVec / gradMag;
 
     var dxx: f32;
     var dyy: f32;
@@ -170,11 +175,13 @@ fn computeSecondDerivative(coord: vec3u, textureDims: vec3u, gradientVec: vec3f)
 }
 @fragment
 fn fs_main(input: VertexOutput) -> @location(0) vec4f {
-    let dims = textureDimensions(volumeTexture);
-    let coords = vec3u(
+    let camera: vec3f = vec3f(0.0, 0.0, 0.0); 
+    let focalLength: f32 = 1.0 / tan(radians(45.0) * 0.5);
+    let dims: vec3u = textureDimensions(volumeTexture);
+    let coords: vec3u = vec3u(
         u32(clamp(input.uv.x * f32(dims.x), 0.0, f32(dims.x - 1u))),
         u32(clamp(input.uv.y * f32(dims.y), 0.0, f32(dims.y - 1u))),
-        u32(f32(dims.z) * 0.5)
+        u32(f32(dims.z) * 0.65)
     );
 
     let firstDerivative = computeFirstDerivative(coords, dims);

@@ -40,10 +40,11 @@ export default async function webgpu() {
   const maxIntensity = voxelData.reduce((max, v) => Math.max(max, v), 0);
   const invMax = 1.0 / maxIntensity; 
   console.log('this is the max intensity', maxIntensity);
+  const fov = 45.0; // Field of view in degrees
 
-  const params = new Float32Array([invMax]);
+  const params = new Float32Array([invMax, fov]);
   const paramBuffer = device.createBuffer({
-    size:4,
+    size: params.byteLength,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
   });
   device.queue.writeBuffer(paramBuffer, 0, params);
