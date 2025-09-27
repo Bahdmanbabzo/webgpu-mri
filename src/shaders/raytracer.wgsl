@@ -176,7 +176,7 @@ fn computeSecondDerivative(coord: vec3u, textureDims: vec3u, gradientVec: vec3f)
 @fragment
 fn fs_main(input: VertexOutput) -> @location(0) vec4f {
     let camera: vec3f = vec3f(0.0, 0.0, 0.0); 
-    let focalLength: f32 = 1.0 / tan(radians(45.0) * 0.5);
+    let focalLength: f32 = 1.0 / tan(radians(params.fov) * 0.5);
     let dims: vec3u = textureDimensions(volumeTexture);
     let coords: vec3u = vec3u(
         u32(clamp(input.uv.x * f32(dims.x), 0.0, f32(dims.x - 1u))),
