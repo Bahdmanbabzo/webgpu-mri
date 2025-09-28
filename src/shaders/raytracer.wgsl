@@ -177,19 +177,19 @@ fn computeSecondDerivative(coord: vec3u, textureDims: vec3u, gradientVec: vec3f)
 fn mollerTrumboreIntersection(v0: vec3f, v1: vec3f, v2: vec3f, rayOrigin: vec3f, rayDir: vec3f) -> f32 {
     let edge1: vec3f = v1 - v0; 
     let edge2: vec3f = v2 - v0; 
-    let n1: vec3f = cross(rayDir, edge2);
-    let det: f32 = dot(edge1, n1); 
+    let pvec: vec3f = cross(rayDir, edge2);
+    let det: f32 = dot(edge1, pvec); 
     let T: vec3f = rayOrigin - v0; 
-    let barycentricBeta: f32 = (dot(T, n1)) / det;
+    let barycentricBeta: f32 = (dot(T, pvec)) / det;
     if (barycentricBeta < 0.0 || barycentricBeta > 1.0) {
         return -1.0; 
     }
-    let n2: vec3f = cross(T, edge1);
-    let barycentricGamma: f32 = dot(rayDir, n2) / det;
+    let qvec: vec3f = cross(T, edge1);
+    let barycentricGamma: f32 = dot(rayDir, qvec) / det;
     if (barycentricGamma < 0.0 || barycentricBeta + barycentricGamma > 1.0) {
         return -1.0; 
     }
-    let t: f32 = dot(edge2, n2) / det;
+    let t: f32 = dot(edge2, qvec) / det;
     if (t > 0.0) {
         return t; 
     } else {
@@ -204,10 +204,10 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4f {
     let aspectRatio: f32 = 1.0; 
     let ndc: vec2f = vec2f((input.uv.x * 2.0 - 1.0)* aspectRatio, (input.uv.y * 2.0 - 1.0));
     let rayDir: vec3f =normalize(vec3f(ndc.x, ndc.y, -focalLength));
-    let v0 = vec3f(-0.5, -0.5, -2.0);
-    let v1 = vec3f( 0.5, -0.5, -2.0);
-    let v2 = vec3f( 0.0,  0.5, -2.0);
-    let t = mollerTrumboreIntersection(v0, v1, v2, camera, rayDir);
+    let v0: vec3f = vec3f(-0.5, -0.5, -2.0);
+    let v1: vec3f = vec3f( 0.5, -0.5, -2.0);
+    let v2: vec3f = vec3f( 0.0,  0.5, -2.0);
+    let t: f32 = mollerTrumboreIntersection(v0, v1, v2, camera, rayDir);
     if (t > 0.0) {
         return vec4f(1.0, 0.0, 0.0, 1.0); 
     }else {
