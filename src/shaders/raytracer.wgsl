@@ -15,7 +15,7 @@ struct Params {
 fn vs_main(@location(0) position: vec2f) -> VertexOutput {
     var output: VertexOutput;
     output.position = vec4f(position, 0.0, 1.0);
-    output.uv = position * 0.5 + 0.5; // Convert [-1,1] to [0,1]
+    output.uv = position * 0.5 + 0.5;
     return output;
 }
 
@@ -30,7 +30,7 @@ fn mapToColor(intensity: f32, gradientMagnitude: f32, curvature: f32) -> vec4f {
 
     let rawIntensity = intensity; // Assume max ~1709
 
-    // Accurately draws around the boundary of the volume
+    // Accurately draws around the boundary of the volum
     // Anything that is not brain tissue
     if (rawIntensity >= 0.0 && rawIntensity < 90) {
         color = vec4f(0.0, 0.0, 0.0, 1.0); 
@@ -173,10 +173,46 @@ fn computeSecondDerivative(coord: vec3u, textureDims: vec3u, gradientVec: vec3f)
 
     return curvature;
 }
+
+fn mollerTrumboreIntersection(v0: vec3f, v1: vec3f, v2: vec3f, rayOrigin: vec3f, rayDir: vec3f) -> f32 {
+    let edge1: vec3f = v1 - v0; 
+    let edge2: vec3f = v2 - v0; 
+    let n1: vec3f = cross(rayDir, edge2);
+    let det: f32 = dot(edge1, n1); 
+    let T: vec3f = rayOrigin - v0; 
+    let barycentricBeta: f32 = (dot(T, n1)) / det;
+    if (barycentricBeta < 0.0 || barycentricBeta > 1.0) {
+        return -1.0; 
+    }
+    let n2: vec3f = cross(T, edge1);
+    let barycentricGamma: f32 = dot(rayDir, n2) / det;
+    if (barycentricGamma < 0.0 || barycentricBeta + barycentricGamma > 1.0) {
+        return -1.0; 
+    }
+    let t: f32 = dot(edge2, n2) / det;
+    if (t > 0.0) {
+        return t; 
+    } else {
+        return -1.0; 
+    }
+
+}
 @fragment
 fn fs_main(input: VertexOutput) -> @location(0) vec4f {
     let camera: vec3f = vec3f(0.0, 0.0, 0.0); 
     let focalLength: f32 = 1.0 / tan(radians(params.fov) * 0.5);
+    let aspectRatio: f32 = 1.0; 
+    let ndc: vec2f = vec2f((input.uv.x * 2.0 - 1.0)* aspectRatio, (input.uv.y * 2.0 - 1.0));
+    let rayDir: vec3f =normalize(vec3f(ndc.x, ndc.y, -focalLength));
+    let v0 = vec3f(-0.5, -0.5, -2.0);
+    let v1 = vec3f( 0.5, -0.5, -2.0);
+    let v2 = vec3f( 0.0,  0.5, -2.0);
+    let t = mollerTrumboreIntersection(v0, v1, v2, camera, rayDir);
+    if (t > 0.0) {
+        return vec4f(1.0, 0.0, 0.0, 1.0); 
+    }else {
+        return vec4f(0.0, 0.0, 0.0, 1.0); 
+    }
     let dims: vec3u = textureDimensions(volumeTexture);
     let coords: vec3u = vec3u(
         u32(clamp(input.uv.x * f32(dims.x), 0.0, f32(dims.x - 1u))),
@@ -195,6 +231,4 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4f {
     //let curvatureVis = curvature * 0.0007 + 0.2;
     //return vec4f(curvatureVis, curvatureVis, curvatureVis, 1.0);
     // ---------------------------
-
-    return mapToColor(intensity, gradientMagnitude, curvature);
 }
