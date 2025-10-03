@@ -197,6 +197,21 @@ fn mollerTrumboreIntersection(v0: vec3f, v1: vec3f, v2: vec3f, rayOrigin: vec3f,
     }
 
 }
+fn rayBoxIntersection(boxMin: vec3f, boxMax: vec3f, rayOrigin: vec3f, rayDir: vec3f) -> vec2f {
+    let invDir: vec3f = 1.0 / rayDir; 
+    let t1: vec3f = (boxMin - rayOrigin) * invDir; 
+    let t2: vec3f = (boxMax - rayOrigin) * invDir;  
+    let tmin: vec3f = min(t1, t2); 
+    let tmax: vec3f = max(t1, t2);
+    let tnear: f32 = max(max(tmin.x, tmin.y), tmin.z); 
+    let tfar: f32 = min(min(tmax.x, tmax.y), tmax.z); 
+
+    if (tnear > tfar || tfar < 0.0) {
+        return vec2f(0.0, 0.0); 
+    }; 
+
+    return vec2f(tnear, tfar); 
+}
 @fragment
 fn fs_main(input: VertexOutput) -> @location(0) vec4f {
     let camera: vec3f = vec3f(0.0, 0.0, 0.0); 
@@ -212,7 +227,9 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4f {
         return vec4f(1.0, 0.0, 0.0, 1.0); 
     }else {
         return vec4f(0.0, 0.0, 0.0, 1.0); 
-    }
+    };
+    let boxMin: vec3f = vec3f(-0.5); 
+    let boxMax: vec3f = vec3f(0.5); 
     let dims: vec3u = textureDimensions(volumeTexture);
     let coords: vec3u = vec3u(
         u32(clamp(input.uv.x * f32(dims.x), 0.0, f32(dims.x - 1u))),
