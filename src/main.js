@@ -2,6 +2,7 @@ import Engine from './engine/engine.js';
 import { RenderPipelineBuilder } from './engine/renderPipeline.js';
 import Helpers from './utils/helpers.js';
 import raytracerShaderCode from './shaders/raytracer.wgsl?raw'; 
+import { vec3, mat4 } from 'wgpu-matrix'; 
 
 export default async function webgpu() {
   const canvas = document.querySelector('canvas');
@@ -40,14 +41,24 @@ export default async function webgpu() {
   const maxIntensity = voxelData.reduce((max, v) => Math.max(max, v), 0);
   const invMax = 1.0 / maxIntensity; 
   console.log('this is the max intensity', maxIntensity);
-  const fov = 45.0; // Field of view in degrees
 
-  const params = new Float32Array([invMax, fov]);
-  const paramBuffer = device.createBuffer({
-    size: params.byteLength,
+  const fov = 45 * Math.PI / 180.0;
+  const aspect = canvas.width / canvas.height;
+  const near = 0.1; 
+  const far = 1000.0; 
+  const projectionMat = mat4.perspective(fov, aspect, near, far); 
+  const eye = [0.0, 0.0, -2.0];
+  const target = [0.0, 0.0, 0.0];
+  const up = [0.0, 1.0, 0.0];
+  const viewMat = mat4.lookAt(eye, target, up);
+  const viewProjMat = mat4.multiply(projectionMat, viewMat); 
+  const invViewProjMat = mat4.invert(viewProjMat);
+  // const params = new Float32Array([invMax, fov]);
+  const cameraBuffer = device.createBuffer({
+    size: viewProjMat.byteLength,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
   });
-  device.queue.writeBuffer(paramBuffer, 0, params);
+  device.queue.writeBuffer(cameraBuffer, 0, invViewProjMat);
 
   const shaderModule = device.createShaderModule({
     code: raytracerShaderCode
@@ -79,6 +90,7 @@ export default async function webgpu() {
     usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST
   }); 
   device.queue.writeBuffer(vertexBuffer, 0, vertexData); 
+
   const pipelineBuilder = new RenderPipelineBuilder(device);
   const renderPipeline = pipelineBuilder
     .setShaderModule(shaderModule)
@@ -92,7 +104,7 @@ export default async function webgpu() {
     layout: bindGroupLayouts, 
     entries: [
       { binding: 0, resource: volumeTexture.createView()}, 
-      { binding: 1, resource: paramBuffer }
+      { binding: 1, resource: cameraBuffer }
     ]
   })
   const commandBuffer = engine.encodeRenderPass(6, renderPipeline, vertexBuffer, bindGroup);
