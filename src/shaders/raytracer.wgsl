@@ -38,26 +38,26 @@ fn mapToColor(intensity: f32, gradientMagnitude: f32, curvature: f32) -> vec4f {
     else if (gradientMagnitude >= 50.0) {
         if (curvature > 0.0) {
             // High positive curvature (convex regions)
-            color = vec4f(1.0, 1.0, 0.0, 1.0); // Yellow for convex
+            color = vec4f(1.0, 1.0, 0.0, 0.5); // Yellow for convex
         } else {
             // High negative curvature (concave regions)
-            color = vec4f(0.0, 1.0, 1.0, 1.0); // Cyan for concave
+            color = vec4f(0.0, 1.0, 1.0, 0.5); // Cyan for concave
         }
     }
     else if (rawIntensity >= 90 && rawIntensity < 200) {
         // Probably csf range 
         // Third ventricle was clearly visible at slide 0.65
-        color = vec4f(0.0, 0.0, 1.0, 1.0); 
+        color = vec4f(0.0, 0.0, 1.0, 0.05); 
     } else if (rawIntensity >=200 && rawIntensity < 300) { // Probably gray matter range
-        color = vec4f(0.0, 1.0, 0.0, 1.0);
+        color = vec4f(0.0, 1.0, 0.0, 0.1);
     } else if (rawIntensity >= 300 && rawIntensity < 400) { // Probably white matter range
-        color = vec4f(1.0, 0.5, 0.8, 1.0); 
+        color = vec4f(1.0, 0.5, 0.8, 0.15); 
     } else if (rawIntensity >= 400 && rawIntensity < 600) { // Probably white matter range
-        color = vec4f(1.0, 0.0, 1.0, 1.0); 
+        color = vec4f(1.0, 0.0, 1.0, 0.2); 
     } else if (rawIntensity >= 600 && rawIntensity < 800) { // Probably white matter range
-        color = vec4f(0.0, 1.0, 1.0, 1.0); 
+        color = vec4f(0.0, 1.0, 1.0, 0.25); 
     } else if (rawIntensity >= 800 && rawIntensity < 1200) { // Probably white matter range
-        color = vec4f(1.0, 1.0, 1.0, 1.0); 
+        color = vec4f(1.0, 1.0, 1.0, 0.3); 
     }
 
     // Default fallback
@@ -207,45 +207,65 @@ fn rayBoxIntersection(boxMin: vec3f, boxMax: vec3f, rayOrigin: vec3f, rayDir: ve
     let tfar: f32 = min(min(tmax.x, tmax.y), tmax.z); 
 
     if (tnear > tfar || tfar < 0.0) {
-        return vec2f(0.0, 0.0);
+        return vec2f(1.0, 0.0);
     }; 
 
     return vec2f(tnear, tfar); 
 }
 @fragment
 fn fs_main(input: VertexOutput) -> @location(0) vec4f {
-    let camera: vec3f = vec3f(0.0, 0.0, 0.0); 
+    let rayOrigin: vec3f = vec3f(0.0, 0.0, 2.0); 
     let focalLength: f32 = 1.0 / tan(radians(params.fov) * 0.5);
     let aspectRatio: f32 = 1.0; 
     let ndc: vec2f = vec2f((input.uv.x * 2.0 - 1.0)* aspectRatio, (input.uv.y * 2.0 - 1.0));
     let rayDir: vec3f =normalize(vec3f(ndc.x, ndc.y, -focalLength));
-    let v0: vec3f = vec3f(-0.5, -0.5, -2.0);
-    let v1: vec3f = vec3f( 0.5, -0.5, -2.0);
-    let v2: vec3f = vec3f( 0.0,  0.5, -2.0);
-    let t: f32 = mollerTrumboreIntersection(v0, v1, v2, camera, rayDir);
-    if (t > 0.0) {
-        return vec4f(1.0, 0.0, 0.0, 1.0); 
-    }else {
-        return vec4f(0.0, 0.0, 0.0, 1.0); 
-    };
+
     let boxMin: vec3f = vec3f(-0.5); 
     let boxMax: vec3f = vec3f(0.5); 
+    let intersection: vec2f = rayBoxIntersection(boxMin, boxMax, rayOrigin, rayDir);
+    let tnear: f32 = intersection.x; 
+    let tfar: f32 = intersection.y; 
+    if(tnear >= tfar) {
+        return vec4f(0.0, 0.0, 0.0, 1.0); 
+    };
+
     let dims: vec3u = textureDimensions(volumeTexture);
-    let coords: vec3u = vec3u(
-        u32(clamp(input.uv.x * f32(dims.x), 0.0, f32(dims.x - 1u))),
-        u32(clamp(input.uv.y * f32(dims.y), 0.0, f32(dims.y - 1u))),
-        u32(f32(dims.z) * 0.65)
-    );
+    var accumulatedColor: vec4f = vec4f(0.0, 0.0, 0.0, 0.0);
+    let numSteps: u32 = 256u;
+    let stepSize: f32 = (tfar - tnear) / f32(numSteps);
+    var t: f32 = tnear + stepSize * 0.5;
 
-    let firstDerivative = computeFirstDerivative(coords, dims);
-    let gradientMagnitude = length(firstDerivative);
-    let intensity = sampleVolume(coords);
-    let curvature = computeSecondDerivative(coords, dims, firstDerivative);
+    for(var i: u32 = 0u; i < u32(numSteps); i = i + 1u) {
+        if (t >= tfar) {
+            break; 
+        }
+        let samplePos: vec3f = rayOrigin + t * rayDir; 
+        let texCoord: vec3f = samplePos + vec3f(0.5); 
+        let coords: vec3u = vec3u(
+            u32(clamp(texCoord.x * f32(dims.x), 0.0, f32(dims.x - 1u))),
+            u32(clamp(texCoord.y * f32(dims.y), 0.0, f32(dims.y - 1u))),
+            u32(clamp(texCoord.z * f32(dims.z), 0.0, f32(dims.z - 1u)))
+        );
+        let intensity: f32 = sampleVolume(coords); 
+        let firstDerivative: vec3f = computeFirstDerivative(coords, dims);
+        let gradientMagnitude: f32 = length(firstDerivative);
+        let curvature: f32 = computeSecondDerivative(coords, dims, firstDerivative);
+        let colorSample: vec4f = mapToColor(intensity, gradientMagnitude, curvature);
 
-    // --- TEMPORARY DEBUGGING ---
-    // Visualize the curvature directly. You may need to adjust the multiplier.
-    // Positive curvature will be bright, negative will be dark.
-    //let curvatureVis = curvature * 0.0007 + 0.2;
-    //return vec4f(curvatureVis, curvatureVis, curvatureVis, 1.0);
-    // ---------------------------
+        if (colorSample.a > 0.0) {
+            let transmittance: f32 = 1.0 - colorSample.a; 
+            let totalTransmittance: f32 = pow(transmittance, stepSize * 2.0); 
+            let correctedOpacity: f32 = 1.0 - totalTransmittance;
+            let colorToAdd: vec4f = colorSample * correctedOpacity * (1.0 - accumulatedColor.a);
+            accumulatedColor.r += colorToAdd.r;
+            accumulatedColor.g += colorToAdd.g;
+            accumulatedColor.b += colorToAdd.b;
+            accumulatedColor.a += correctedOpacity * (1.0 - accumulatedColor.a);
+        };
+        if (accumulatedColor.a >= 0.95) {
+            break; 
+        };
+        t = t + stepSize;
+    }
+    return accumulatedColor;
 }
