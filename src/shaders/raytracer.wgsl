@@ -33,7 +33,7 @@ fn mapToColor(intensity: f32, gradientMagnitude: f32, curvature: f32) -> vec4f {
     // Accurately draws around the boundary of the volum
     // Anything that is not brain tissue
     if (rawIntensity >= 0.0 && rawIntensity < 90) {
-        color = vec4f(0.0, 0.0, 0.0, 1.0); 
+        color = vec4f(0.0, 0.0, 0.0, 0.0); 
     } 
     else if (gradientMagnitude >= 50.0) {
         if (curvature > 0.0) {
@@ -207,7 +207,7 @@ fn rayBoxIntersection(boxMin: vec3f, boxMax: vec3f, rayOrigin: vec3f, rayDir: ve
     let tfar: f32 = min(min(tmax.x, tmax.y), tmax.z); 
 
     if (tnear > tfar || tfar < 0.0) {
-        return vec2f(0.0, 0.0); 
+        return vec2f(0.0, 0.0);
     }; 
 
     return vec2f(tnear, tfar); 
