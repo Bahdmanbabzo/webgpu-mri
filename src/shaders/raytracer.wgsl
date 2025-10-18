@@ -4,8 +4,7 @@ struct VertexOutput {
 }
 
 struct Params {
-    invMax: f32, 
-    fov: f32,
+    invViewProjMat: mat4x4<f32>,
 }
 
 @group(0) @binding(0) var volumeTexture: texture_3d<u32>; 
@@ -21,7 +20,7 @@ fn vs_main(@location(0) position: vec2f) -> VertexOutput {
 
 fn sampleVolume(coord: vec3u) -> f32 {
     let rawValue = textureLoad(volumeTexture, coord, 0).r; 
-    let normalised = f32(rawValue) * params.invMax; 
+    let normalised = f32(rawValue) * params.invViewProjMat; 
     return f32(rawValue);
 }
 
@@ -214,12 +213,16 @@ fn rayBoxIntersection(boxMin: vec3f, boxMax: vec3f, rayOrigin: vec3f, rayDir: ve
 }
 @fragment
 fn fs_main(input: VertexOutput) -> @location(0) vec4f {
-    let rayOrigin: vec3f = vec3f(0.0, 0.0, 2.0); 
-    let focalLength: f32 = 1.0 / tan(radians(params.fov) * 0.5);
-    let aspectRatio: f32 = 1.0; 
-    let ndc: vec2f = vec2f((input.uv.x * 2.0 - 1.0)* aspectRatio, (input.uv.y * 2.0 - 1.0));
-    let rayDir: vec3f =normalize(vec3f(ndc.x, ndc.y, -focalLength));
-
+    // First convert clip space to ndc then to world space
+    // Imagine how a projector works but in the reverse direction since we're going from 2D(pixels on the screen) to 3D
+    let ndcNear: vec4f = vec4f(input.uv.x * 2.0 - 1.0, input.uv.y * 2.0 - 1.0, 0.0, 1.0);
+    let ndcFar: vec4f = vec4f(input.uv.x * 2.0 - 1.0, input.uv.y * 2.0 - 1.0, 1.0, 1.0);
+    let worldNear: vec4f = params.invViewProjMat * ndcNear;
+    let worldFar: vec4f = params.invViewProjMat * ndcFar;
+    // Perform perspective divide
+    // This gives us the ray origin and direction in world space while reflecting camera perspective correctly
+    let rayOrigin: vec3f = worldNear.xyz / worldNear.w;
+    let rayDir: vec3f = normalize((worldFar.xyz / worldFar.w) - rayOrigin);
     let boxMin: vec3f = vec3f(-0.5); 
     let boxMax: vec3f = vec3f(0.5); 
     let intersection: vec2f = rayBoxIntersection(boxMin, boxMax, rayOrigin, rayDir);
