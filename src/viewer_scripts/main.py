@@ -69,7 +69,6 @@ def plot_directional_derivatives(volume, slice_index=None):
     plt.tight_layout()
     plt.show()
 
-# Add this at the end of your main.py to run:
 print("\n" + "="*80)
 print("DIRECTIONAL DERIVATIVE SCATTER PLOT")
 print("="*80)
