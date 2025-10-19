@@ -49,6 +49,13 @@ export default async function webgpu() {
     target: [0.0, 0.0, 0.0],
     up: [0.0, 1.0, 0.0], 
   }
+  let alphaValues = {
+    csf: 0.1,
+    gray: 0.3,
+    white: 0.5, 
+    convexEdges: 0.8,
+    concaveEdges: 0.8
+  };
   const gui = new GUI();
   gui.add(camera, 'fov', 10 * Math.PI / 180.0, 90 * Math.PI / 180.0).name('FOV (radians)');
 
@@ -57,6 +64,14 @@ export default async function webgpu() {
   eyeFolder.add(camera.eye, '1', -5.0, 5.0).name('Eye Y');
   eyeFolder.add(camera.eye, '2', -5.0, 5.0).name('Eye Z');
   eyeFolder.open();
+
+  const alphaValuesFolder = gui.addFolder('Tissue Alpha Values');
+  alphaValuesFolder.add(alphaValues, 'csf', 0.01, 1.0).name('CSF');
+  alphaValuesFolder.add(alphaValues, 'gray', 0.0, 1.0).name('Gray Matter');
+  alphaValuesFolder.add(alphaValues, 'white', 0.0, 1.0).name('White Matter');
+  alphaValuesFolder.add(alphaValues, 'convexEdges', 0.0, 1.0).name('Convex Edges');
+  alphaValuesFolder.add(alphaValues, 'concaveEdges', 0.0, 1.0).name('Concave Edges');
+  alphaValuesFolder.open();
 
   const aspect = canvas.width / canvas.height;
   const near = 0.1; 
@@ -71,6 +86,19 @@ export default async function webgpu() {
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
   });
   device.queue.writeBuffer(cameraBuffer, 0, invViewProjMat);
+
+  const alphaData = new Float32Array([
+    alphaValues.csf, 
+    alphaValues.gray, 
+    alphaValues.white,
+    alphaValues.convexEdges,
+    alphaValues.concaveEdges
+  ]); 
+  const alphaBuffer = device.createBuffer({
+    size: alphaData.byteLength,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+  });
+  device.queue.writeBuffer(alphaBuffer, 0, alphaData);
 
   const shaderModule = device.createShaderModule({
     code: raytracerShaderCode
@@ -116,7 +144,8 @@ export default async function webgpu() {
     layout: bindGroupLayouts, 
     entries: [
       { binding: 0, resource: volumeTexture.createView()}, 
-      { binding: 1, resource: {buffer:cameraBuffer } }
+      { binding: 1, resource: {buffer:cameraBuffer } }, 
+      { binding: 2, resource: {buffer:alphaBuffer } },
     ]
   });
 
@@ -126,10 +155,17 @@ export default async function webgpu() {
     viewProjMat = mat4.multiply(projectionMat, viewMat); 
     invViewProjMat = mat4.invert(viewProjMat);
 
+    alphaData[0] = alphaValues.csf;
+    alphaData[1] = alphaValues.gray;
+    alphaData[2] = alphaValues.white;
+    alphaData[3] = alphaValues.convexEdges;
+    alphaData[4] = alphaValues.concaveEdges;
+    device.queue.writeBuffer(alphaBuffer, 0, alphaData);
+
     device.queue.writeBuffer(cameraBuffer, 0, invViewProjMat);
     const commandBuffer = engine.encodeRenderPass(6, renderPipeline, vertexBuffer, bindGroup);
     engine.submitCommand(commandBuffer);
-    
+
     requestAnimationFrame(updateAndRender);
   };
   updateAndRender();

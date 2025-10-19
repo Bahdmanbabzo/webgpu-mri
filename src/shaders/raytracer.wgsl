@@ -4,11 +4,20 @@ struct VertexOutput {
 }
 
 struct Params {
-    invViewProjMat: mat4x4<f32>,
+    invViewProjMat: mat4x4<f32>, 
+}
+
+struct TissueAlphas {
+    csf: f32,
+    gray: f32,
+    white: f32,
+    convexEdges: f32,
+    concaveEdges: f32
 }
 
 @group(0) @binding(0) var volumeTexture: texture_3d<u32>; 
 @group(0) @binding(1) var<uniform> params: Params; 
+@group(0) @binding(2) var<uniform> tissueAlphas: TissueAlphas;
 
 @vertex
 fn vs_main(@location(0) position: vec2f) -> VertexOutput {
@@ -20,7 +29,6 @@ fn vs_main(@location(0) position: vec2f) -> VertexOutput {
 
 fn sampleVolume(coord: vec3u) -> f32 {
     let rawValue = textureLoad(volumeTexture, coord, 0).r; 
-    let normalised = f32(rawValue) * params.invViewProjMat; 
     return f32(rawValue);
 }
 
@@ -37,20 +45,20 @@ fn mapToColor(intensity: f32, gradientMagnitude: f32, curvature: f32) -> vec4f {
     else if (gradientMagnitude >= 50.0) {
         if (curvature > 0.0) {
             // High positive curvature (convex regions)
-            color = vec4f(1.0, 1.0, 0.0, 0.5); // Yellow for convex
+            color = vec4f(1.0, 1.0, 0.0, tissueAlphas.convexEdges); // Yellow for convex
         } else {
             // High negative curvature (concave regions)
-            color = vec4f(0.0, 1.0, 1.0, 0.5); // Cyan for concave
+            color = vec4f(0.0, 1.0, 1.0, tissueAlphas.concaveEdges); // Cyan for concave
         }
     }
     else if (rawIntensity >= 90 && rawIntensity < 200) {
         // Probably csf range 
         // Third ventricle was clearly visible at slide 0.65
-        color = vec4f(0.0, 0.0, 1.0, 0.05); 
+        color = vec4f(0.0, 0.0, 1.0, tissueAlphas.csf); 
     } else if (rawIntensity >=200 && rawIntensity < 300) { // Probably gray matter range
-        color = vec4f(0.0, 1.0, 0.0, 0.1);
+        color = vec4f(0.0, 1.0, 0.0, tissueAlphas.gray);
     } else if (rawIntensity >= 300 && rawIntensity < 400) { // Probably white matter range
-        color = vec4f(1.0, 0.5, 0.8, 0.15); 
+        color = vec4f(1.0, 0.5, 0.8, tissueAlphas.white); 
     } else if (rawIntensity >= 400 && rawIntensity < 600) { // Probably white matter range
         color = vec4f(1.0, 0.0, 1.0, 0.2); 
     } else if (rawIntensity >= 600 && rawIntensity < 800) { // Probably white matter range
@@ -61,7 +69,7 @@ fn mapToColor(intensity: f32, gradientMagnitude: f32, curvature: f32) -> vec4f {
 
     // Default fallback
     else {
-        color = vec4f(1.0, 1.0, 1.0, 0.5); // Soft white
+        color = vec4f(1.0, 1.0, 1.0, 0.0); // Soft white
     }
 
     return color;
@@ -259,7 +267,7 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4f {
             let transmittance: f32 = 1.0 - colorSample.a; 
             let totalTransmittance: f32 = pow(transmittance, stepSize * 2.0); 
             let correctedOpacity: f32 = 1.0 - totalTransmittance;
-            let colorToAdd: vec4f = colorSample * correctedOpacity * (1.0 - accumulatedColor.a);
+            let colorToAdd: vec3f = colorSample.rgb * correctedOpacity * (1.0 - accumulatedColor.a);
             accumulatedColor.r += colorToAdd.r;
             accumulatedColor.g += colorToAdd.g;
             accumulatedColor.b += colorToAdd.b;
