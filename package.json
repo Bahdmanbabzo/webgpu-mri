@@ -12,6 +12,7 @@
     "vite": "^6.3.5"
   },
   "dependencies": {
+    "dat.gui": "^0.7.9",
     "nifti-reader-js": "^0.8.0",
     "wgpu-matrix": "^3.4.0"
   }

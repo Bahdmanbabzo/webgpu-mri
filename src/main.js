@@ -2,7 +2,8 @@ import Engine from './engine/engine.js';
 import { RenderPipelineBuilder } from './engine/renderPipeline.js';
 import Helpers from './utils/helpers.js';
 import raytracerShaderCode from './shaders/raytracer.wgsl?raw'; 
-import { vec3, mat4 } from 'wgpu-matrix'; 
+import { mat4 } from 'wgpu-matrix';
+import { GUI } from 'dat.gui'; 
 
 export default async function webgpu() {
   const canvas = document.querySelector('canvas');
@@ -42,17 +43,28 @@ export default async function webgpu() {
   const invMax = 1.0 / maxIntensity; 
   console.log('this is the max intensity', maxIntensity);
 
-  const fov = 45 * Math.PI / 180.0;
+  let camera = {
+    fov: 20 * Math.PI / 180.0, 
+    eye: [0.0, 0.0, -2.0],
+    target: [0.0, 0.0, 0.0],
+    up: [0.0, 1.0, 0.0], 
+  }
+  const gui = new GUI();
+  gui.add(camera, 'fov', 10 * Math.PI / 180.0, 90 * Math.PI / 180.0).name('FOV (radians)');
+
+  const eyeFolder = gui.addFolder('Camera Eye');
+  eyeFolder.add(camera.eye, '0', -5.0, 5.0).name('Eye X');
+  eyeFolder.add(camera.eye, '1', -5.0, 5.0).name('Eye Y');
+  eyeFolder.add(camera.eye, '2', -5.0, 5.0).name('Eye Z');
+  eyeFolder.open();
+
   const aspect = canvas.width / canvas.height;
   const near = 0.1; 
   const far = 1000.0; 
-  const projectionMat = mat4.perspective(fov, aspect, near, far); 
-  const eye = [0.0, 0.0, -2.0];
-  const target = [0.0, 0.0, 0.0];
-  const up = [0.0, 1.0, 0.0];
-  const viewMat = mat4.lookAt(eye, target, up);
-  const viewProjMat = mat4.multiply(projectionMat, viewMat); 
-  const invViewProjMat = mat4.invert(viewProjMat);
+  let projectionMat = mat4.perspective(camera.fov, aspect, near, far); 
+  let viewMat = mat4.lookAt(camera.eye, camera.target, camera.up);
+  let viewProjMat = mat4.multiply(projectionMat, viewMat); 
+  let invViewProjMat = mat4.invert(viewProjMat);
   // const params = new Float32Array([invMax, fov]);
   const cameraBuffer = device.createBuffer({
     size: viewProjMat.byteLength,
@@ -104,11 +116,23 @@ export default async function webgpu() {
     layout: bindGroupLayouts, 
     entries: [
       { binding: 0, resource: volumeTexture.createView()}, 
-      { binding: 1, resource: cameraBuffer }
+      { binding: 1, resource: {buffer:cameraBuffer } }
     ]
-  })
-  const commandBuffer = engine.encodeRenderPass(6, renderPipeline, vertexBuffer, bindGroup);
-  await engine.submitCommand(commandBuffer);
+  });
+
+  function updateAndRender() {
+    projectionMat = mat4.perspective(camera.fov, aspect, near, far);
+    viewMat = mat4.lookAt(camera.eye, camera.target, camera.up);
+    viewProjMat = mat4.multiply(projectionMat, viewMat); 
+    invViewProjMat = mat4.invert(viewProjMat);
+
+    device.queue.writeBuffer(cameraBuffer, 0, invViewProjMat);
+    const commandBuffer = engine.encodeRenderPass(6, renderPipeline, vertexBuffer, bindGroup);
+    engine.submitCommand(commandBuffer);
+    
+    requestAnimationFrame(updateAndRender);
+  };
+  updateAndRender();
 }
 
 webgpu(); 
