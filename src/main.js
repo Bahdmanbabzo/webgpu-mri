@@ -10,13 +10,6 @@ export default async function webgpu() {
   const engine  = await Engine.initialize(canvas);
   const device = engine.device;
 
-  // Set up canvas dimensions to match window dimensions
-  // const devicePixelRatio = window.devicePixelRatio || 1;
-  // canvas.width = window.innerWidth * devicePixelRatio;
-  // canvas.height = window.innerHeight * devicePixelRatio ;
-  // canvas.style.width = `${window.innerWidth}px`;
-  // canvas.style.height = `${window.innerHeight}px`;
-
   // Load a NIfTI file
   const {header, voxelData} = await Helpers.loadNiftiFile('/sub-001/anat/sub-001_T1w.nii.gz'); 
   Helpers.processNiftiData(header);
@@ -40,14 +33,16 @@ export default async function webgpu() {
   console.log("This is the volume texture", volumeTexture);
 
   const maxIntensity = voxelData.reduce((max, v) => Math.max(max, v), 0);
-  const invMax = 1.0 / maxIntensity; 
-  console.log('this is the max intensity', maxIntensity);
+
 
   let camera = {
     fov: 20 * Math.PI / 180.0, 
     eye: [0.0, 0.0, -2.0],
     target: [0.0, 0.0, 0.0],
-    up: [0.0, 1.0, 0.0], 
+    up: [0.0, 1.0, 0.0],
+    aspect: canvas.width / canvas.height, 
+    near: 0.1, 
+    far: 1000.0
   }
   let alphaValues = {
     csf: 0.1,
@@ -56,6 +51,9 @@ export default async function webgpu() {
     convexEdges: 0.8,
     concaveEdges: 0.8
   };
+  let volumeState = {
+    rotation: [0.0, 0.0, 0.0], 
+  }
   const gui = new GUI();
   gui.add(camera, 'fov', 10 * Math.PI / 180.0, 90 * Math.PI / 180.0).name('FOV (radians)');
 
@@ -73,19 +71,16 @@ export default async function webgpu() {
   alphaValuesFolder.add(alphaValues, 'concaveEdges', 0.0, 1.0).name('Concave Edges');
   alphaValuesFolder.open();
 
-  const aspect = canvas.width / canvas.height;
-  const near = 0.1; 
-  const far = 1000.0; 
-  let projectionMat = mat4.perspective(camera.fov, aspect, near, far); 
-  let viewMat = mat4.lookAt(camera.eye, camera.target, camera.up);
-  let viewProjMat = mat4.multiply(projectionMat, viewMat); 
-  let invViewProjMat = mat4.invert(viewProjMat);
-  // const params = new Float32Array([invMax, fov]);
-  const cameraBuffer = device.createBuffer({
-    size: viewProjMat.byteLength,
+  const volumeStateFolder = gui.addFolder('Volume Rotation');
+  volumeStateFolder.add(volumeState.rotation, '0', 0.0, 2.0 * Math.PI).name('Rotation X');
+  volumeStateFolder.add(volumeState.rotation, '1', 0.0, 2.0 * Math.PI).name('Rotation Y');
+  volumeStateFolder.add(volumeState.rotation, '2', 0.0, 2.0 * Math.PI).name('Rotation Z');
+  volumeStateFolder.open();
+
+  const paramsBuffer = device.createBuffer({
+    size: 16 * 4,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
   });
-  device.queue.writeBuffer(cameraBuffer, 0, invViewProjMat);
 
   const alphaData = new Float32Array([
     alphaValues.csf, 
@@ -144,16 +139,21 @@ export default async function webgpu() {
     layout: bindGroupLayouts, 
     entries: [
       { binding: 0, resource: volumeTexture.createView()}, 
-      { binding: 1, resource: {buffer:cameraBuffer } }, 
+      { binding: 1, resource: {buffer:paramsBuffer } }, 
       { binding: 2, resource: {buffer:alphaBuffer } },
     ]
   });
 
   function updateAndRender() {
-    projectionMat = mat4.perspective(camera.fov, aspect, near, far);
-    viewMat = mat4.lookAt(camera.eye, camera.target, camera.up);
-    viewProjMat = mat4.multiply(projectionMat, viewMat); 
-    invViewProjMat = mat4.invert(viewProjMat);
+    const modelMat = mat4.identity();
+    mat4.rotateX(modelMat, -Math.PI / 2.0, modelMat);
+    mat4.rotateY(modelMat, volumeState.rotation[1], modelMat);
+    mat4.rotateZ(modelMat, volumeState.rotation[2], modelMat);
+    mat4.rotateX(modelMat, volumeState.rotation[0], modelMat);
+    const projectionMat = mat4.perspective(camera.fov, camera.aspect, camera.near, camera.far);
+    const viewMat = mat4.lookAt(camera.eye, camera.target, camera.up);
+    const modelViewProjMat = mat4.multiply(mat4.multiply(projectionMat, viewMat), modelMat);
+    const invMVP = mat4.invert(modelViewProjMat);
 
     alphaData[0] = alphaValues.csf;
     alphaData[1] = alphaValues.gray;
@@ -162,7 +162,7 @@ export default async function webgpu() {
     alphaData[4] = alphaValues.concaveEdges;
     device.queue.writeBuffer(alphaBuffer, 0, alphaData);
 
-    device.queue.writeBuffer(cameraBuffer, 0, invViewProjMat);
+    device.queue.writeBuffer(paramsBuffer, 0, invMVP);
     const commandBuffer = engine.encodeRenderPass(6, renderPipeline, vertexBuffer, bindGroup);
     engine.submitCommand(commandBuffer);
 
