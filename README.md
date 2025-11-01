@@ -44,6 +44,30 @@ This project serves as the foundational rendering engine for a much larger goal:
 -   **GUI:** dat.gui
 -   **Data Pre-processing:** Python, NumPy, NiBabel
 
+## Project Structure
+
+The repository is organized to separate the core rendering engine from the application logic and shaders, promoting modularity and clarity.
+
+```
+webgpu-mri/
+├── public/
+│   └── sub-001/            # Contains the NIFTI data assets
+├── src/
+│   ├── engine/
+│   │   ├── engine.js       # Core WebGPU engine setup and state management
+│   │   └── renderPipeline.js # Manages the GPU render pipeline and resources
+│   ├── shaders/
+│   │   └── raytracer.wgsl  # The heart of the project: the volume ray-marching shader
+│   ├── utils/
+│   │   └── helpers.js      # Utility functions
+│   ├── viewer_scripts/
+│   │   └── main.py         # Python scripts for NIFTI data pre-processing
+│   ├── main.js             # Main application entry point
+│   └── style.css           # Application styles
+├── README.md
+└── package.json
+```
+
 ## Getting Started
 
 To get a local copy up and running, follow these simple steps.
