@@ -5,6 +5,10 @@ A real-time, interactive 3D volume renderer for medical imaging data (NIFTI), bu
 ## Demo
 ---
 
+https://github.com/user-attachments/assets/7f2c00c9-1263-484a-88f8-053d430fbf93
+
+
+
 ## About The Project
 
 This project was born from a desire to bridge the gap between clinical medicine and cutting-edge computer graphics. As a medical student, I found that standard 2D slice-by-slice viewing of MRI scans was often insufficient for understanding complex 3D anatomical relationships.
