@@ -4,7 +4,7 @@ struct VertexOutput {
 }
 
 struct Params {
-    invMVPMat: mat4x4<f32>, 
+    invMVPMat : mat4x4<f32>, 
 }
 
 struct TissueAlphas {
@@ -225,8 +225,8 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4f {
     // Imagine how a projector works but in the reverse direction since we're going from 2D(pixels on the screen) to 3D
     let ndcNear: vec4f = vec4f(input.uv.x * 2.0 - 1.0, input.uv.y * 2.0 - 1.0, 0.0, 1.0);
     let ndcFar: vec4f = vec4f(input.uv.x * 2.0 - 1.0, input.uv.y * 2.0 - 1.0, 1.0, 1.0);
-    let worldNear: vec4f = params.invMVPMat * ndcNear;
-    let worldFar: vec4f = params.invMVPMat * ndcFar;
+    let worldNear: vec4f = params.invMVPMat  * ndcNear;
+    let worldFar: vec4f = params.invMVPMat  * ndcFar;
     // Perform perspective divide
     // This gives us the ray origin and direction in world space while reflecting camera perspective correctly
     let rayOrigin: vec3f = worldNear.xyz / worldNear.w;
@@ -242,7 +242,7 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4f {
 
     let dims: vec3u = textureDimensions(volumeTexture);
     var accumulatedColor: vec4f = vec4f(0.0, 0.0, 0.0, 0.0);
-    let numSteps: u32 = 256u;
+    let numSteps: u32 = 512u;
     let stepSize: f32 = (tfar - tnear) / f32(numSteps);
     var t: f32 = tnear + stepSize * 0.5;
 
