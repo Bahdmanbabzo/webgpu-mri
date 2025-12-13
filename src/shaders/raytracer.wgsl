@@ -32,6 +32,27 @@ fn sampleVolume(coord: vec3u) -> f32 {
     return f32(rawValue);
 }
 
+fn calculateLighting(position: vec3f, normal: vec3f, viewDir: vec3f, color: vec4f) -> vec4f {
+    let lightPos: vec3f = vec3f(100.0, 100.0, 100.0); // Define a light source
+    let lightDir: vec3f  = normalize(lightPos - position);
+    
+    // 1. Ambient
+    let ambientStrength: f32 = 0.3;
+    let ambient: vec3f  = ambientStrength * vec3f(1.0);
+
+    // 2. Diffuse (Lambert)
+    let diff: f32 = max(dot(normal, lightDir), 0.0);
+    let diffuse: vec3f = diff * vec3f(1.0);
+    // 3. Specular (Phong) - Makes it shiny!
+    let specularStrength: f32 = 0.5;
+    let reflectDir: vec3f = reflect(-lightDir, normal);
+    let spec: f32 = pow(max(dot(viewDir, reflectDir), 0.0), 32.0); // 32 is shininess
+    let specular: vec3f = specularStrength * spec * vec3f(1.0);
+
+    let lighting: vec3f = (ambient + diffuse + specular);
+    return vec4f(color.rgb * lighting, color.a);
+}
+
 fn mapToColor(intensity: f32, gradientMagnitude: f32, curvature: f32) -> vec4f {
     var color: vec4f;
 
@@ -261,18 +282,22 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4f {
         let firstDerivative: vec3f = computeFirstDerivative(coords, dims);
         let gradientMagnitude: f32 = length(firstDerivative);
         let curvature: f32 = computeSecondDerivative(coords, dims, firstDerivative);
-        let colorSample: vec4f = mapToColor(intensity, gradientMagnitude, curvature);
+        var colorSample: vec4f = mapToColor(intensity, gradientMagnitude, curvature);
 
-        if (colorSample.a > 0.0) {
-            let transmittance: f32 = 1.0 - colorSample.a; 
-            let totalTransmittance: f32 = pow(transmittance, stepSize * 2.0); 
-            let correctedOpacity: f32 = 1.0 - totalTransmittance;
-            let colorToAdd: vec3f = colorSample.rgb * correctedOpacity * (1.0 - accumulatedColor.a);
-            accumulatedColor.r += colorToAdd.r;
-            accumulatedColor.g += colorToAdd.g;
-            accumulatedColor.b += colorToAdd.b;
-            accumulatedColor.a += correctedOpacity * (1.0 - accumulatedColor.a);
-        };
+         if (colorSample.a > 0.0) {
+            let normal: vec3f = normalize(firstDerivative);
+            colorSample = calculateLighting(samplePos, normal, -rayDir, colorSample);
+            // let transmittance: f32 = 1.0 - colorSample.a; 
+            // let totalTransmittance: f32 = pow(transmittance, stepSize * 2.0); 
+            // let correctedOpacity: f32 = 1.0 - totalTransmittance;
+            // let colorToAdd: vec3f = colorSample.rgb * correctedOpacity * (1.0 - accumulatedColor.a);
+            // accumulatedColor.r += colorToAdd.r;
+            // accumulatedColor.g += colorToAdd.g;
+            // accumulatedColor.b += colorToAdd.b;
+            // accumulatedColor.a += correctedOpacity * (1.0 - accumulatedColor.a);
+        }
+
+        accumulatedColor = accumulatedColor + colorSample * (1.0 - accumulatedColor.a);
         if (accumulatedColor.a >= 0.95) {
             break; 
         };
