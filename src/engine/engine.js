@@ -27,7 +27,9 @@ export default class Engine {
             throw new Error("No GPU adapter found.");
         }
 
-        const device = await adapter.requestDevice();
+        const device = await adapter.requestDevice({
+            requiredFeatures: ["float32-filterable"]
+        });
         return device;
     }
 
