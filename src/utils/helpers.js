@@ -24,7 +24,7 @@ export default class Helpers{
         console.log("This is the image", image);
         console.log("This is the header", header);
         
-        // Make typed array depending on dataType
+        // These are defined values in the NIfTI-1 data format specification
         switch(header.datatypeCode) {
             case 2: 
                 voxelData = new Uint8Array(image);
@@ -42,9 +42,6 @@ export default class Helpers{
                 voxelData = new Uint16Array(image);
                 break; 
         }
-        console.log("This is voxel buffer", voxelData.buffer);
-        console.log("this is bytes", voxelData.BYTES_PER_ELEMENT); 
-        console.log("This is the header", header);
         return {
             header: header,
             image: image,
@@ -92,22 +89,25 @@ export default class Helpers{
             };
         }
 
-        const totalPaddedSize = paddedWidth * height * depth;
-        const paddedArray = new Int16Array(totalPaddedSize); 
-
+        const totalPaddedByteSize = paddedWidth * height * depth;
+        // Do this to preserve the data type (e.g., Int16Array, Float32Array, etc.)
+        const constructor = voxelData.constructor;
+        const paddedArray = new constructor(totalPaddedByteSize / bytesPerPixel)
         let sourceOffset = 0 ; 
         let paddedOffset = 0; 
 
+        const rowSizeInElements = width; 
+        const paddedRowSizeInElements = paddedWidth / bytesPerPixel; 
         for(let z = 0; z < depth; z++) {
             for (let y = 0; y < height; y++) {
                 paddedArray.set(
-                    voxelData.subarray(sourceOffset, sourceOffset + (width * bytesPerPixel / 2)),
+                    voxelData.subarray(sourceOffset, sourceOffset + rowSizeInElements),
                     paddedOffset
                 ); 
             }
 
-            sourceOffset += width * bytesPerPixel / 2;
-            paddedOffset += paddedWidth / bytesPerPixel;
+            sourceOffset += rowSizeInElements;
+            paddedOffset += paddedRowSizeInElements;
         }
 
         return {
