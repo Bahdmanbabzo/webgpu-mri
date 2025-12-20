@@ -104,10 +104,9 @@ export default class Helpers{
                     voxelData.subarray(sourceOffset, sourceOffset + rowSizeInElements),
                     paddedOffset
                 ); 
+                sourceOffset += rowSizeInElements;
+                paddedOffset += paddedRowSizeInElements;
             }
-
-            sourceOffset += rowSizeInElements;
-            paddedOffset += paddedRowSizeInElements;
         }
 
         return {
