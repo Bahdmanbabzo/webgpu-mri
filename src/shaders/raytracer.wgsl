@@ -15,9 +15,10 @@ struct TissueAlphas {
     concaveEdges: f32
 }
 
-@group(0) @binding(0) var volumeTexture: texture_3d<u32>; 
-@group(0) @binding(1) var<uniform> params: Params; 
-@group(0) @binding(2) var<uniform> tissueAlphas: TissueAlphas;
+@group(0) @binding(0) var volumeTexture: texture_3d<f32>; 
+@group(0) @binding(1) var mySampler: sampler;
+@group(0) @binding(2) var<uniform> params: Params; 
+@group(0) @binding(3) var<uniform> tissueAlphas: TissueAlphas;
 
 @vertex
 fn vs_main(@location(0) position: vec2f) -> VertexOutput {
@@ -27,13 +28,12 @@ fn vs_main(@location(0) position: vec2f) -> VertexOutput {
     return output;
 }
 
-fn sampleVolume(coord: vec3u) -> f32 {
-    let rawValue = textureLoad(volumeTexture, coord, 0).r; 
-    return f32(rawValue);
+fn sampleVolume(uv: vec3f) -> vec4f {
+    return textureSampleLevel(volumeTexture, mySampler, uv, 0.0);
 }
 
 fn calculateLighting(position: vec3f, normal: vec3f, viewDir: vec3f, color: vec4f) -> vec4f {
-    let lightPos: vec3f = vec3f(100.0, 100.0, 100.0); // Define a light source
+    let lightPos: vec3f = vec3f(0.0, 100.0, 100.0);
     let lightDir: vec3f  = normalize(lightPos - position);
     
     // 1. Ambient
@@ -43,11 +43,12 @@ fn calculateLighting(position: vec3f, normal: vec3f, viewDir: vec3f, color: vec4
     // 2. Diffuse (Lambert)
     let diff: f32 = max(dot(normal, lightDir), 0.0);
     let diffuse: vec3f = diff * vec3f(1.0);
-    // 3. Specular (Phong) - Makes it shiny!
+
+    // 3. Specular (Phong)
     let specularStrength: f32 = 0.5;
     let reflectDir: vec3f = reflect(-lightDir, normal);
-    let spec: f32 = pow(max(dot(viewDir, reflectDir), 0.0), 32.0); // 32 is shininess
-    let specular: vec3f = specularStrength * spec * vec3f(1.0);
+    let spec: f32 = pow(max(dot(viewDir, reflectDir), 0.0), 10.0); 
+    let specular: vec3f = specularStrength * spec * vec3f(2.0);
 
     let lighting: vec3f = (ambient + diffuse + specular);
     return vec4f(color.rgb * lighting, color.a);
@@ -56,21 +57,19 @@ fn calculateLighting(position: vec3f, normal: vec3f, viewDir: vec3f, color: vec4
 fn mapToColor(intensity: f32, gradientMagnitude: f32, curvature: f32) -> vec4f {
     var color: vec4f;
 
-    let rawIntensity = intensity; // Assume max ~1709
+    let rawIntensity: f32 = intensity; // Assume max ~1709
 
-    // Accurately draws around the boundary of the volum
+    // Accurately draws around the boundary of the volume
     // Anything that is not brain tissue
     if (rawIntensity >= 0.0 && rawIntensity < 90) {
         color = vec4f(0.0, 0.0, 0.0, 0.0); 
     } 
     else if (gradientMagnitude >= 50.0) {
-        if (curvature > 0.0) {
-            // High positive curvature (convex regions)
-            color = vec4f(1.0, 1.0, 0.0, tissueAlphas.convexEdges); // Yellow for convex
-        } else {
-            // High negative curvature (concave regions)
-            color = vec4f(0.0, 1.0, 1.0, tissueAlphas.concaveEdges); // Cyan for concave
-        }
+        // Transition smoothly between concave and convex edges
+        let convex: vec4f = vec4f(1.0, 1.0, 0.0, tissueAlphas.convexEdges); 
+        let concave: vec4f = vec4f(0.0, 1.0, 1.0, tissueAlphas.concaveEdges);
+        let t: f32 = smoothstep(-100.0, 100.0, curvature);
+        color = mix(concave, convex, t); 
     }
     else if (rawIntensity >= 90 && rawIntensity < 200) {
         // Probably csf range 
@@ -95,136 +94,24 @@ fn mapToColor(intensity: f32, gradientMagnitude: f32, curvature: f32) -> vec4f {
 
     return color;
 }
-fn computeFirstDerivative(coord: vec3u, textureDims: vec3u) -> vec3f {
-    var dx: f32;
-    var dy: f32; 
-    var dz: f32;
-    // f(x) = x^2
-    if (coord.x == 0u || coord.x >= textureDims.x - 1u) {
-        dx = 0.0;
-    } else {
-        dx = sampleVolume(coord + vec3u(1u, 0u, 0u)) - sampleVolume(coord - vec3u(1u, 0u, 0u));
-    };
-    if (coord.y == 0u || coord.y >= textureDims.y - 1u) {
-       dy = 0.0;
-    } else {
-        dy = sampleVolume(coord + vec3u(0u, 1u, 0u)) - sampleVolume(coord - vec3u(0u, 1u, 0u));
-    };
-    if (coord.z == 0u || coord.z >= textureDims.z - 1u) {
-        dz = 0.0;
-    } else {
-        dz = sampleVolume(coord + vec3u(0u, 0u, 1u)) - sampleVolume(coord - vec3u(0u, 0u, 1u));
-    };
-    let stepSize: f32 = 2.0; // f(x) = x^2
-    let scale: f32 = 1.0 / stepSize; // Stepsize replica for vector use.
-    return vec3f(dx, dy, dz) * scale;
+
+// Necessary here to compute normals for lighting
+fn computeGradient(uv: vec3f, step: vec3f) -> vec3f {
+    let val_x_p: f32 = sampleVolume(uv + vec3f(step.x, 0.0, 0.0)).r;
+    let val_x_m: f32 = sampleVolume(uv - vec3f(step.x, 0.0, 0.0)).r;
+    let dx: f32 = val_x_p - val_x_m;
+
+    let val_y_p: f32 = sampleVolume(uv + vec3f(0.0, step.y, 0.0)).r;
+    let val_y_m: f32 = sampleVolume(uv - vec3f(0.0, step.y, 0.0)).r;
+    let dy: f32 = val_y_p - val_y_m;
+
+    let val_z_p: f32 = sampleVolume(uv + vec3f(0.0, 0.0, step.z)).r;
+    let val_z_m: f32 = sampleVolume(uv - vec3f(0.0, 0.0, step.z)).r;
+    let dz: f32 = val_z_p - val_z_m;
+
+    return vec3f(dx, dy, dz) * 0.5; 
 }
 
-
-fn computeSecondDerivative(coord: vec3u, textureDims: vec3u, gradientVec: vec3f) -> f32 {
-    let gradMag = length(gradientVec);
-    if (gradMag < 1e-5) {
-        return 0.0; // Avoid division by zero
-    }
-    let g_hat = gradientVec / gradMag;
-
-    var dxx: f32;
-    var dyy: f32;
-    var dzz: f32;
-    var f_xy: f32;
-    var f_xz: f32;
-    var f_yz: f32;
-
-    // Second partials (central differences)
-    // Recall f''(x) = 2
-    // f(x + 1) -2f(x) + f(x - 1)
-    // Again central differences to give more accurate descriptions
-    if (coord.x > 0u && coord.x < textureDims.x - 1u) {
-        dxx = sampleVolume(coord + vec3u(1u, 0u, 0u)) - (2.0 * sampleVolume(coord)) + sampleVolume(coord - vec3u(1u, 0u, 0u));
-    } else {
-        dxx = 0.0;
-    }
-    if (coord.y > 0u && coord.y < textureDims.y - 1u) {
-        dyy = sampleVolume(coord + vec3u(0u, 1u, 0u)) - (2.0 * sampleVolume(coord)) + sampleVolume(coord - vec3u(0u, 1u, 0u));
-    } else {
-        dyy = 0.0;
-    }
-    if (coord.z > 0u && coord.z < textureDims.z - 1u) {
-        dzz = sampleVolume(coord + vec3u(0u, 0u, 1u)) - (2.0 * sampleVolume(coord)) + sampleVolume(coord - vec3u(0u, 0u, 1u));
-    } else {
-        dzz = 0.0;
-    }
-
-    // Mixed partials (central differences)
-    // Recall f(x + 1, y + 1) - f( x + 1, y - 1) - f( x - 1, y + 1) + f(x - 1, y - 1)
-    // More accurate to do this as opposed to just forward/backward approach
-    if (coord.x > 0u && coord.x < textureDims.x - 1u && coord.y > 0u && coord.y < textureDims.y - 1u) {
-       f_xy = (
-            sampleVolume(vec3u(coord.x + 1u, coord.y + 1u, coord.z))
-            - sampleVolume(vec3u(coord.x + 1u, coord.y - 1u, coord.z))
-            - sampleVolume(vec3u(coord.x - 1u, coord.y + 1u, coord.z))
-            + sampleVolume(vec3u(coord.x - 1u, coord.y - 1u, coord.z))
-        ) * 0.25;
-    } else {
-        f_xy = 0.0;
-    }
-    if (coord.x > 0u && coord.x < textureDims.x - 1u && coord.z > 0u && coord.z < textureDims.z - 1u) {
-        f_xz = (
-            sampleVolume(vec3u(coord.x + 1u, coord.y, coord.z + 1u))
-            - sampleVolume(vec3u(coord.x + 1u, coord.y, coord.z - 1u))
-            - sampleVolume(vec3u(coord.x - 1u, coord.y, coord.z + 1u))
-            + sampleVolume(vec3u(coord.x - 1u, coord.y, coord.z - 1u))
-        ) * 0.25;
-    } else {
-        f_xz = 0.0;
-    }
-    if (coord.y > 0u && coord.y < textureDims.y - 1u && coord.z > 0u && coord.z < textureDims.z - 1u) {
-        f_yz = (
-            sampleVolume(vec3u(coord.x, coord.y + 1u, coord.z + 1u))
-            - sampleVolume(vec3u(coord.x, coord.y + 1u, coord.z - 1u))
-            - sampleVolume(vec3u(coord.x, coord.y - 1u, coord.z + 1u))
-            + sampleVolume(vec3u(coord.x, coord.y - 1u, coord.z - 1u))
-        ) * 0.25;
-    } else {
-        f_yz = 0.0;
-    }
-
-    // Form Hessian matrix
-    let hessian = mat3x3<f32>(
-        dxx, f_xy, f_xz,
-        f_xy, dyy, f_yz,
-        f_xz, f_yz, dzz
-    );
-
-    // Calculate curvature using the dot product
-    let curvature = dot(g_hat, hessian * g_hat);
-
-    return curvature;
-}
-
-fn mollerTrumboreIntersection(v0: vec3f, v1: vec3f, v2: vec3f, rayOrigin: vec3f, rayDir: vec3f) -> f32 {
-    let edge1: vec3f = v1 - v0; 
-    let edge2: vec3f = v2 - v0; 
-    let pvec: vec3f = cross(rayDir, edge2);
-    let det: f32 = dot(edge1, pvec); 
-    let T: vec3f = rayOrigin - v0; 
-    let barycentricBeta: f32 = (dot(T, pvec)) / det;
-    if (barycentricBeta < 0.0 || barycentricBeta > 1.0) {
-        return -1.0; 
-    }
-    let qvec: vec3f = cross(T, edge1);
-    let barycentricGamma: f32 = dot(rayDir, qvec) / det;
-    if (barycentricGamma < 0.0 || barycentricBeta + barycentricGamma > 1.0) {
-        return -1.0; 
-    }
-    let t: f32 = dot(edge2, qvec) / det;
-    if (t > 0.0) {
-        return t; 
-    } else {
-        return -1.0; 
-    }
-
-}
 fn rayBoxIntersection(boxMin: vec3f, boxMax: vec3f, rayOrigin: vec3f, rayDir: vec3f) -> vec2f {
     let invDir: vec3f = 1.0 / rayDir; 
     let t1: vec3f = (boxMin - rayOrigin) * invDir; 
@@ -261,7 +148,9 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4f {
         return vec4f(0.0, 0.0, 0.0, 1.0); 
     };
 
-    let dims: vec3u = textureDimensions(volumeTexture);
+    let dims: vec3f = vec3f(textureDimensions(volumeTexture)); 
+    let texelSize: vec3f = 1.0 / dims; 
+
     var accumulatedColor: vec4f = vec4f(0.0, 0.0, 0.0, 0.0);
     let numSteps: u32 = 512u;
     let stepSize: f32 = (tfar - tnear) / f32(numSteps);
@@ -273,31 +162,33 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4f {
         }
         let samplePos: vec3f = rayOrigin + t * rayDir; 
         let texCoord: vec3f = samplePos + vec3f(0.5); 
-        let coords: vec3u = vec3u(
-            u32(clamp(texCoord.x * f32(dims.x), 0.0, f32(dims.x - 1u))),
-            u32(clamp(texCoord.y * f32(dims.y), 0.0, f32(dims.y - 1u))),
-            u32(clamp(texCoord.z * f32(dims.z), 0.0, f32(dims.z - 1u)))
-        );
-        let intensity: f32 = sampleVolume(coords); 
-        let firstDerivative: vec3f = computeFirstDerivative(coords, dims);
-        let gradientMagnitude: f32 = length(firstDerivative);
-        let curvature: f32 = computeSecondDerivative(coords, dims, firstDerivative);
+        
+        let sampleVal: vec4f = sampleVolume(texCoord); 
+        let intensity: f32 = sampleVal.r;
+        let gradientMagnitude: f32 = sampleVal.g;
+        let curvature: f32 = sampleVal.b;
+
         var colorSample: vec4f = mapToColor(intensity, gradientMagnitude, curvature);
 
          if (colorSample.a > 0.0) {
-            let normal: vec3f = normalize(firstDerivative);
+            let gradient: vec3f = computeGradient(texCoord, texelSize);
+            let normal: vec3f = normalize(gradient);
             colorSample = calculateLighting(samplePos, normal, -rayDir, colorSample);
-            // let transmittance: f32 = 1.0 - colorSample.a; 
-            // let totalTransmittance: f32 = pow(transmittance, stepSize * 2.0); 
-            // let correctedOpacity: f32 = 1.0 - totalTransmittance;
-            // let colorToAdd: vec3f = colorSample.rgb * correctedOpacity * (1.0 - accumulatedColor.a);
-            // accumulatedColor.r += colorToAdd.r;
-            // accumulatedColor.g += colorToAdd.g;
-            // accumulatedColor.b += colorToAdd.b;
-            // accumulatedColor.a += correctedOpacity * (1.0 - accumulatedColor.a);
+            
+            // Opacity correction for step size independence
+            let transmittance: f32 = 1.0 - colorSample.a; 
+            // Multiplier 500.0 ensures visibility matches roughly the previous naive blending
+            // while gaining step-size independence.
+            let totalTransmittance: f32 = pow(transmittance, stepSize * 500.0); 
+            let correctedOpacity: f32 = 1.0 - totalTransmittance;
+            
+            let colorToAdd: vec3f = colorSample.rgb * correctedOpacity * (1.0 - accumulatedColor.a);
+            accumulatedColor.r += colorToAdd.r;
+            accumulatedColor.g += colorToAdd.g;
+            accumulatedColor.b += colorToAdd.b;
+            accumulatedColor.a += correctedOpacity * (1.0 - accumulatedColor.a);
         }
 
-        accumulatedColor = accumulatedColor + colorSample * (1.0 - accumulatedColor.a);
         if (accumulatedColor.a >= 0.95) {
             break; 
         };
