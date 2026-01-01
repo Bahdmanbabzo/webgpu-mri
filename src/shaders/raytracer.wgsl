@@ -5,6 +5,7 @@ struct VertexOutput {
 
 struct Params {
     invMVPMat : mat4x4<f32>, 
+    misc: vec4f,
 }
 
 struct TissueAlphas {
@@ -163,6 +164,12 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4f {
         let samplePos: vec3f = rayOrigin + t * rayDir; 
         let texCoord: vec3f = samplePos + vec3f(0.5); 
         
+        // If the voxel's X coordinate is above the slice threshold, make it invisible.
+        if (texCoord.x >= params.misc.x) {
+             t = t + stepSize;
+             continue;
+        }
+
         let sampleVal: vec4f = sampleVolume(texCoord); 
         let intensity: f32 = sampleVal.r;
         let gradientMagnitude: f32 = sampleVal.g;
@@ -177,8 +184,6 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4f {
             
             // Opacity correction for step size independence
             let transmittance: f32 = 1.0 - colorSample.a; 
-            // Multiplier 500.0 ensures visibility matches roughly the previous naive blending
-            // while gaining step-size independence.
             let totalTransmittance: f32 = pow(transmittance, stepSize * 500.0); 
             let correctedOpacity: f32 = 1.0 - totalTransmittance;
             

@@ -105,7 +105,8 @@ export default async function webgpu() {
     concaveEdges: 0.8
   };
   let volumeState = {
-    rotation: [0.0, 0.0, 0.0], 
+    rotation: [0.0, 0.0, 0.0],
+    sliceZ: 1.0 
   }
   const gui = new GUI();
   gui.add(camera, 'fov', 10 * Math.PI / 180.0, 90 * Math.PI / 180.0).name('FOV (radians)');
@@ -128,10 +129,12 @@ export default async function webgpu() {
   volumeStateFolder.add(volumeState.rotation, '0', 0.0, 2.0 * Math.PI).name('Rotation X');
   volumeStateFolder.add(volumeState.rotation, '1', 0.0, 2.0 * Math.PI).name('Rotation Y');
   volumeStateFolder.add(volumeState.rotation, '2', 0.0, 2.0 * Math.PI).name('Rotation Z');
+  volumeStateFolder.add(volumeState, 'sliceZ', 0.0, 1.0).name('Slice Z-Axis');
   volumeStateFolder.open();
 
   const paramsBuffer = device.createBuffer({
-    size: 16 * 4,
+    label: 'Inverse MVP Matrix Buffer',
+    size: 80,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
   });
 
@@ -143,6 +146,7 @@ export default async function webgpu() {
     alphaValues.concaveEdges
   ]); 
   const alphaBuffer = device.createBuffer({
+    label: 'Alpha Values Buffer',
     size: alphaData.byteLength,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
   });
@@ -217,6 +221,8 @@ export default async function webgpu() {
     device.queue.writeBuffer(alphaBuffer, 0, alphaData);
 
     device.queue.writeBuffer(paramsBuffer, 0, invMVP);
+    const miscData = new Float32Array([volumeState.sliceZ, 0.0, 0.0, 0.0]);
+    device.queue.writeBuffer(paramsBuffer, 64, miscData);
     const commandBuffer = engine.encodeRenderPass(6, renderPipeline, vertexBuffer, bindGroup);
     engine.submitCommand(commandBuffer);
 
