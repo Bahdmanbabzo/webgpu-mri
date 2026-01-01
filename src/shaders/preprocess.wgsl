@@ -26,8 +26,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3u) {
     var gradientMagnitude: f32;
     var curvature: f32 = 0.0;
 
-    // Shared samples for Gradient and Curvature
-    // We load these once and reuse them across both scopes
+    // Sample neighboring voxels for gradient and curvature calculations
     let val_x_p: f32 = sampleVolume(id + vec3i(1, 0, 0));
     let val_x_m: f32 = sampleVolume(id - vec3i(1, 0, 0));
     let val_y_p: f32 = sampleVolume(id + vec3i(0, 1, 0));
@@ -38,6 +37,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3u) {
     // --- GRADIENT CALCULATION ---
     var gradient: vec3f;
     {
+        // Recall central difference: f'(x) = (f(x+h) - f(x-h)) / 2
         let dx: f32 = (val_x_p - val_x_m) * 0.5;
         let dy: f32 = (val_y_p - val_y_m) * 0.5;
         let dz: f32 = (val_z_p - val_z_m) * 0.5;
@@ -48,16 +48,18 @@ fn main(@builtin(global_invocation_id) global_id: vec3u) {
 
     // --- CURVATURE CALCULATION ---
     {
-        // Optimization: Only compute curvature if there is a gradient to curve along
+        //  Only compute curvature if there is a gradient to curve along
         if (gradientMagnitude > 1e-5) {
             let g_hat: vec3f = gradient / gradientMagnitude;
 
-            // Axial Second Derivatives (Reusing the variables we loaded above!)
+            // Axial Second Derivatives 
+            // Recall f(x) = f(x+h) - 2f(x) + f(x-h)
             let dxx: f32 = val_x_p - 2.0 * val + val_x_m;
             let dyy: f32 = val_y_p - 2.0 * val + val_y_m;
             let dzz: f32 = val_z_p - 2.0 * val + val_z_m;
 
-            // Mixed Partials (These still require new diagonal samples)
+            // Mixed Partials
+            // Recall f(x,y) = (f(x+h,y+h) - f(x+h,y-h) - f(x-h,y+h) + f(x-h,y-h)) / 4
             let f_xy: f32 = (
                 sampleVolume(id + vec3i(1, 1, 0)) - 
                 sampleVolume(id + vec3i(1, -1, 0)) - 
@@ -89,6 +91,5 @@ fn main(@builtin(global_invocation_id) global_id: vec3u) {
         }
     }
 
-    // Store results
     textureStore(outputVolume, id, vec4f(val, gradientMagnitude, curvature, 1.0));
 }
