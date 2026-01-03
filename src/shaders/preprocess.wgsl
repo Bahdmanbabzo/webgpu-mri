@@ -21,7 +21,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3u) {
         return;
     }
 
-    let val: f32 = sampleVolume(id);
+    let intensity: f32 = sampleVolume(id);
     
     var gradientMagnitude: f32;
     var curvature: f32 = 0.0;
@@ -54,9 +54,9 @@ fn main(@builtin(global_invocation_id) global_id: vec3u) {
 
             // Axial Second Derivatives 
             // Recall f(x) = f(x+h) - 2f(x) + f(x-h)
-            let dxx: f32 = val_x_p - 2.0 * val + val_x_m;
-            let dyy: f32 = val_y_p - 2.0 * val + val_y_m;
-            let dzz: f32 = val_z_p - 2.0 * val + val_z_m;
+            let dxx: f32 = val_x_p - 2.0 * intensity + val_x_m;
+            let dyy: f32 = val_y_p - 2.0 * intensity + val_y_m;
+            let dzz: f32 = val_z_p - 2.0 * intensity + val_z_m;
 
             // Mixed Partials
             // Recall f(x,y) = (f(x+h,y+h) - f(x+h,y-h) - f(x-h,y+h) + f(x-h,y-h)) / 4
@@ -91,5 +91,5 @@ fn main(@builtin(global_invocation_id) global_id: vec3u) {
         }
     }
 
-    textureStore(outputVolume, id, vec4f(val, gradientMagnitude, curvature, 1.0));
+    textureStore(outputVolume, id, vec4f(intensity, gradientMagnitude, curvature, 1.0));
 }

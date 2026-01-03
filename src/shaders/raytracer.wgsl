@@ -58,11 +58,23 @@ fn calculateLighting(position: vec3f, normal: vec3f, viewDir: vec3f, color: vec4
 fn mapToColor(intensity: f32, gradientMagnitude: f32, curvature: f32) -> vec4f {
     var color: vec4f;
 
-    let rawIntensity: f32 = intensity; // Assume max ~1709
+    let maxIntensity: f32 = params.misc.g;
+    let normalizedIntensity: f32 = intensity / maxIntensity; 
 
-    // Accurately draws around the boundary of the volume
-    // Anything that is not brain tissue
-    if (rawIntensity >= 0.0 && rawIntensity < 90) {
+    // Tissue ranges have been approximated using info from the graph plots in viewer scripts
+    // I found that these percentages relative to maximum intensity fairly describe different tissue types
+    // These are (for now) based on typical T1-weighted scans 
+    // This would allow more robustness in terms being able to run the same standards on scans from different machines
+    let BACKGROUND_THRESHOLD: f32 = 0.05; 
+    let CSF_MAX: f32 = 0.12; 
+    let GRAY_MATTER_MAX: f32 = 0.18; 
+    let WHITE_MATTER_MAX: f32 = 0.23; 
+    let BRIGHT_TISSUE_1: f32 = 0.35; 
+    let BRIGHT_TISSUE_2: f32 = 0.47;
+    let VERY_BRIGHT: f32 = 0.70; 
+
+    // Background / Air
+    if (normalizedIntensity < BACKGROUND_THRESHOLD) {
         color = vec4f(0.0, 0.0, 0.0, 0.0); 
     } 
     else if (gradientMagnitude >= 50.0) {
@@ -72,27 +84,32 @@ fn mapToColor(intensity: f32, gradientMagnitude: f32, curvature: f32) -> vec4f {
         let t: f32 = smoothstep(-100.0, 100.0, curvature);
         color = mix(concave, convex, t); 
     }
-    else if (rawIntensity >= 90 && rawIntensity < 200) {
-        // Probably csf range 
-        // Third ventricle was clearly visible at slide 0.65
+      // CSF (Cerebrospinal Fluid)
+    else if (normalizedIntensity < CSF_MAX) {
         color = vec4f(0.0, 0.0, 1.0, tissueAlphas.csf); 
-    } else if (rawIntensity >=200 && rawIntensity < 300) { // Probably gray matter range
+    } 
+    // Gray Matter
+    else if (normalizedIntensity < GRAY_MATTER_MAX) {
         color = vec4f(0.0, 1.0, 0.0, tissueAlphas.gray);
-    } else if (rawIntensity >= 300 && rawIntensity < 400) { // Probably white matter range
+    } 
+    // White Matter
+    else if (normalizedIntensity < WHITE_MATTER_MAX) {
         color = vec4f(1.0, 0.5, 0.8, tissueAlphas.white); 
-    } else if (rawIntensity >= 400 && rawIntensity < 600) { // Probably white matter range
+    } 
+    // Bright Tissue (Fat, Blood)
+    else if (normalizedIntensity < BRIGHT_TISSUE_1) {
         color = vec4f(1.0, 0.0, 1.0, 0.2); 
-    } else if (rawIntensity >= 600 && rawIntensity < 800) { // Probably white matter range
-        color = vec4f(0.0, 1.0, 1.0, 0.25); 
-    } else if (rawIntensity >= 800 && rawIntensity < 1200) { // Probably white matter range
-        color = vec4f(1.0, 1.0, 1.0, 0.3); 
+    } 
+    else if (normalizedIntensity < BRIGHT_TISSUE_2) {
+        color = vec4f(1.0, 0.4, 0.0, 0.25); 
+    } 
+    else if (normalizedIntensity < VERY_BRIGHT) {
+        color = vec4f(0.6, 0.0, 0.54, 0.3); 
     }
-
-    // Default fallback
+    // Super Bright (Bone, Skull)
     else {
-        color = vec4f(1.0, 1.0, 1.0, 0.0); // Soft white
+        color = vec4f(0.8, 0.5, 0.2, 0.4); 
     }
-
     return color;
 }
 

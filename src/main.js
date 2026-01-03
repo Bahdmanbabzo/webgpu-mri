@@ -14,12 +14,16 @@ export default async function webgpu() {
   const stats = new Stats();
 
   // Load a NIfTI file
-  const {header, voxelData} = await Helpers.loadNiftiFile('/sub-001/anat/sub-001_T1w.nii.gz'); 
+  const {header, voxelData} = await Helpers.loadNiftiFile('/sub-002_T1w.nii.gz'); 
   Helpers.processNiftiData(header);
   const [_, width, height, depth] = header.dims; 
   // Cast back to float32 to allow texture to use trilinear sampling
   const voxelDataArray = new Float32Array(voxelData);
   const adjustedData = Helpers.pad(voxelDataArray, width, height, depth);
+
+  const minIntensity = voxelData.reduce((min, val) => Math.min(min, val), Infinity); 
+  const maxIntensity = voxelData.reduce((max, val) => Math.max(max, val), -Infinity); 
+  console.log(`Max ${maxIntensity} , min ${minIntensity}`)
 
   const volumeTexture = device.createTexture({
     size: [width, height, depth], 
@@ -221,7 +225,7 @@ export default async function webgpu() {
     device.queue.writeBuffer(alphaBuffer, 0, alphaData);
 
     device.queue.writeBuffer(paramsBuffer, 0, invMVP);
-    const miscData = new Float32Array([volumeState.sliceZ, 0.0, 0.0, 0.0]);
+    const miscData = new Float32Array([volumeState.sliceZ, maxIntensity, 0.0, 0.0]);
     device.queue.writeBuffer(paramsBuffer, 64, miscData);
     const commandBuffer = engine.encodeRenderPass(6, renderPipeline, vertexBuffer, bindGroup);
     engine.submitCommand(commandBuffer);
