@@ -23,6 +23,7 @@ export default async function webgpu() {
 
   const minIntensity = voxelData.reduce((min, val) => Math.min(min, val), Infinity); 
   const maxIntensity = voxelData.reduce((max, val) => Math.max(max, val), -Infinity); 
+  // const maxGradient = Helpers.computeMaxGradient(voxelDataArray, width, height, depth);
   console.log(`Max ${maxIntensity} , min ${minIntensity}`)
 
   const volumeTexture = device.createTexture({
@@ -65,12 +66,18 @@ export default async function webgpu() {
   });
   device.queue.writeBuffer(computeParamsBuffer, 0, new Float32Array([width, height, depth, 0]));
 
+  const maxGradientBuffer = device.createBuffer({
+    size: 4,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
+  });
+
   const computeBindGroup = device.createBindGroup({
     layout: computePipeline.getBindGroupLayout(0),
     entries: [
       { binding: 0, resource: volumeTexture.createView() },
       { binding: 1, resource: processedTexture.createView() },
       { binding: 2, resource: { buffer: computeParamsBuffer } },
+      { binding: 3, resource: { buffer: maxGradientBuffer } },
     ],
   });
 
@@ -80,7 +87,21 @@ export default async function webgpu() {
   passEncoder.setBindGroup(0, computeBindGroup);
   passEncoder.dispatchWorkgroups(Math.ceil(width / 8), Math.ceil(height / 8), Math.ceil(depth / 4));
   passEncoder.end();
+
+  const maxGradientReadBuffer = device.createBuffer({
+    size: 4,
+    usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
+  });
+  commandEncoder.copyBufferToBuffer(maxGradientBuffer, 0, maxGradientReadBuffer, 0, 4);
+
   device.queue.submit([commandEncoder.finish()]);
+  
+  await maxGradientReadBuffer.mapAsync(GPUMapMode.READ);
+  const maxGradientUint = new Uint32Array(maxGradientReadBuffer.getMappedRange())[0];
+  const maxGradient = new Float32Array(new Uint32Array([maxGradientUint]).buffer)[0];
+  maxGradientReadBuffer.unmap();
+  console.log("Max Gradient:", maxGradient);
+
   // ------------------------------------
 
   const sampler = device.createSampler({
@@ -225,7 +246,7 @@ export default async function webgpu() {
     device.queue.writeBuffer(alphaBuffer, 0, alphaData);
 
     device.queue.writeBuffer(paramsBuffer, 0, invMVP);
-    const miscData = new Float32Array([volumeState.sliceZ, maxIntensity, 0.0, 0.0]);
+    const miscData = new Float32Array([volumeState.sliceZ, maxIntensity, maxGradient, 0.0]);
     device.queue.writeBuffer(paramsBuffer, 64, miscData);
     const commandBuffer = engine.encodeRenderPass(6, renderPipeline, vertexBuffer, bindGroup);
     engine.submitCommand(commandBuffer);
