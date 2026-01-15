@@ -4,12 +4,23 @@ A real-time, interactive 3D volume renderer for medical imaging data (NIFTI), bu
 
 ## Demo
 ---
-
-https://github.com/user-attachments/assets/01d9e08b-032a-4c74-9174-8c9349b452b2
-
-<img width="664" height="803" alt="Screenshot 2026-01-08 224434" src="https://github.com/user-attachments/assets/aa1e6ffb-a158-4eee-919d-f8ac69b2b218" /><img width="1270" height="933" alt="optic chiasm showing" src="https://github.com/user-attachments/assets/ad6bb66c-2823-479d-8047-a77d423e5118" />
-
-
+<p align="center">
+  <video src="https://github.com/user-attachments/assets/01d9e08b-032a-4c74-9174-8c9349b452b2" width="80%" controls></video>
+  <br>
+  <b>Main Video Demo</b>
+</p>
+<table style="width: 100%;">
+  <tr>
+    <td style="width: 50%; text-align: center;">
+      <img src="https://github.com/user-attachments/assets/aa1e6ffb-a158-4eee-919d-f8ac69b2b218" alt="Demo 1" style="max-width: 100%;">
+      <p align="center"><b>Demo 1 Title</b></p>
+    </td>
+    <td style="width: 50%; text-align: center;">
+      <img src="https://github.com/user-attachments/assets/ad6bb66c-2823-479d-8047-a77d423e5118" alt="Demo 2" style="max-width: 100%;">
+      <p align="center"><b>Demo 2 Title</b></p>
+    </td>
+  </tr>
+</table>
 
 ## About The Project
 
