@@ -5,7 +5,13 @@ A real-time, interactive 3D volume renderer for medical imaging data (NIFTI), bu
 ## Demo
 ---
 
-https://github.com/user-attachments/assets/7f2c00c9-1263-484a-88f8-053d430fbf93
+https://github.com/user-attachments/assets/01d9e08b-032a-4c74-9174-8c9349b452b2
+
+
+
+<img width="664" height="803" alt="Screenshot 2026-01-08 224434" src="https://github.com/user-attachments/assets/aa1e6ffb-a158-4eee-919d-f8ac69b2b218" />
+
+<img width="1270" height="933" alt="optic chiasm showing" src="https://github.com/user-attachments/assets/ad6bb66c-2823-479d-8047-a77d423e5118" />
 
 
 
