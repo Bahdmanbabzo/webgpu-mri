@@ -4,10 +4,23 @@ A real-time, interactive 3D volume renderer for medical imaging data (NIFTI), bu
 
 ## Demo
 ---
-
-https://github.com/user-attachments/assets/7f2c00c9-1263-484a-88f8-053d430fbf93
-
-
+<p align="center">
+   <b>3D slicing along the z axis</b>
+  <video src="https://github.com/user-attachments/assets/01d9e08b-032a-4c74-9174-8c9349b452b2" width="80%" controls></video>
+  <br>
+</p>
+<table style="width: 100%;">
+  <tr>
+    <td style="width: 50%; text-align: center;">
+      <img src="https://github.com/user-attachments/assets/aa1e6ffb-a158-4eee-919d-f8ac69b2b218" alt="Demo 1" style="max-width: 100%;">
+      <p align="center"><b>Visualising lateral ventricles and deep cerebral venous plexus.</b></p>
+    </td>
+    <td style="width: 50%; text-align: center;">
+      <img src="https://github.com/user-attachments/assets/ad6bb66c-2823-479d-8047-a77d423e5118" alt="Demo 2" style="max-width: 100%;">
+      <p align="center"><b>Transverse section showing the optic chiasm and pathway.</b></p>
+    </td>
+  </tr>
+</table>
 
 ## About The Project
 
