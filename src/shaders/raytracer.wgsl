@@ -77,13 +77,13 @@ fn mapToColor(intensity: f32, gradientMagnitude: f32, curvature: f32) -> vec4f {
     if (normalizedIntensity < BACKGROUND_THRESHOLD) {
         color = vec4f(0.0, 0.0, 0.0, 0.0); 
     } 
-    else if (gradientMagnitude >= 50.0) {
-        // Transition smoothly between concave and convex edges
-        let convex: vec4f = vec4f(1.0, 1.0, 0.0, tissueAlphas.convexEdges); 
-        let concave: vec4f = vec4f(0.0, 1.0, 1.0, tissueAlphas.concaveEdges);
-        let t: f32 = smoothstep(-100.0, 100.0, curvature);
-        color = mix(concave, convex, t); 
-    }
+    // else if (gradientMagnitude >= 50.0) {
+    //     // Transition smoothly between concave and convex edges
+    //     let convex: vec4f = vec4f(1.0, 1.0, 0.0, tissueAlphas.convexEdges); 
+    //     let concave: vec4f = vec4f(0.0, 1.0, 1.0, tissueAlphas.concaveEdges);
+    //     let t: f32 = smoothstep(-100.0, 100.0, curvature);
+    //     color = mix(concave, convex, t); 
+    // }
       // CSF (Cerebrospinal Fluid)
     else if (normalizedIntensity < CSF_MAX) {
         color = vec4f(0.0, 0.0, 1.0, tissueAlphas.csf); 
@@ -182,7 +182,7 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4f {
         let texCoord: vec3f = samplePos + vec3f(0.5); 
         
         // If the voxel's X coordinate is above the slice threshold, make it invisible.
-        if (texCoord.x >= params.misc.x) {
+        if (texCoord.z >= params.misc.x) {
              t = t + stepSize;
              continue;
         }
