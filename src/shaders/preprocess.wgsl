@@ -11,7 +11,7 @@ struct GlobalStats {
     maxGradient: atomic<u32>,
 }
 
-var<workgroup> scratch: array<u32, 256>;
+var<workgroup> whiteBoard: array<u32, 256>;
 
 fn sampleVolume(pos: vec3i) -> f32 {
     let dims: vec3i = vec3i(params.volumeDimensions.xyz);
@@ -100,23 +100,23 @@ fn main(@builtin(global_invocation_id) global_id: vec3u, @builtin(local_invocati
     }
 
     // Update local max using parallel reduction
-    scratch[local_index] = bitcast<u32>(gradientMagnitude);
+    whiteBoard[local_index] = bitcast<u32>(gradientMagnitude);
     
     workgroupBarrier();
 
     // Parallel reduction loop
-    for (var i = 128u; i > 0u; i >>= 1u) {
+    for (var i: u32 = 128u; i > 0u; i >>= 1u) {
         if (local_index < i) {
-            let otherValue = scratch[local_index + i];
-            if (otherValue > scratch[local_index]) {
-                scratch[local_index] = otherValue;
+            let otherThread: u32 = whiteBoard[local_index + i];
+            if (otherThread > whiteBoard[local_index]) {
+                whiteBoard[local_index] = otherThread;
             }
         }
         workgroupBarrier();
     }
 
     if (local_index == 0u) {
-        atomicMax(&globalStats.maxGradient, scratch[0]);
+        atomicMax(&globalStats.maxGradient, whiteBoard[0]);
     }
 
     if (inside) {
