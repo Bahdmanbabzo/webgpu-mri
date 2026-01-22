@@ -54,13 +54,15 @@ def generate_training_data(input_nii_path, output_folder):
     # Create output folder if it doesn't exist
     os.makedirs(output_folder, exist_ok=True)
 
-    # Loop through each slice and save original and edge map as PNG
+    # Loop through each slice and save original as PNG, skip zeroed slices
     for i in range(data.shape[2]):
         slice_img = data[:, :, i]
-        # Save original slice
         norm_slice = normalize_image(slice_img, slice_img.min(), np.ptp(slice_img), slice_index=i)
+        if np.all(norm_slice == 0):
+            print(f"Skipping slice {i}: all values are zero after normalization.")
+            continue  # Skip saving this slice
         imageio.imwrite(os.path.join(output_folder, f'slice_{i:03d}_original.png'), norm_slice)
 
 # Example usage:
-generate_edge_map('public/sub-002_T1w.nii.gz', 'public/train/edges')
-generate_training_data('public/sub-002_T1w.nii.gz', 'public/train/originals')
+# generate_edge_map('public/sub-002_T1w.nii.gz', 'public/train/edges')
+generate_training_data('public/sub-003_T1w.nii.gz', 'public/train/predict/preds_03')
