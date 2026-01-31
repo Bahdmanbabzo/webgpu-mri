@@ -44,7 +44,7 @@ def generate_edge_map(input_nii_path, output_folder):
         # Normalize to 0-255 for PNG
         norm_edges = normalize_image(edges, edges.min(), np.ptp(edges), slice_index=i)
         # Save as PNG
-        imageio.imwrite(os.path.join(output_folder, f'slice_{i:03d}_edges.png'), norm_edges)
+        imageio.imwrite(os.path.join(output_folder, f'slice_{i:03d}_mask.png'), norm_edges)
 
 def generate_training_data(input_nii_path, output_folder):
     # Load NIfTI volume
@@ -58,11 +58,11 @@ def generate_training_data(input_nii_path, output_folder):
     for i in range(data.shape[2]):
         slice_img = data[:, :, i]
         norm_slice = normalize_image(slice_img, slice_img.min(), np.ptp(slice_img), slice_index=i)
-        if np.all(norm_slice == 0):
-            print(f"Skipping slice {i}: all values are zero after normalization.")
-            continue  # Skip saving this slice
+        # if np.all(norm_slice == 0):
+        #     print(f"Skipping slice {i}: all values are zero after normalization.")
+        #     continue  # Skip saving this slice
         imageio.imwrite(os.path.join(output_folder, f'slice_{i:03d}_original.png'), norm_slice)
 
 # Example usage:
 # generate_edge_map('public/sub-002_T1w.nii.gz', 'public/train/edges')
-generate_training_data('public/sub-003_T1w.nii.gz', 'public/train/predict/preds_03')
+generate_training_data('public/sub-003_T1w.nii.gz', 'public/train/originals/originals_03')
