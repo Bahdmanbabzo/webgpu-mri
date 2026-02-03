@@ -1,3 +1,5 @@
+# WebGPU Medical Volume Renderer
+
 A real-time, interactive 3D volume renderer for medical imaging data (NIFTI), built from first principles using the WebGPU API. This project explores advanced visualization techniques by applying computational geometry and calculus directly on the GPU to enhance anatomical structures.
 
 ## Demo
