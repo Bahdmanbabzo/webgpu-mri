@@ -1,4 +1,4 @@
-# WebGPU Medical Volume Renderer
+<img width="1000" height="500" alt="slice_330_original_with_processed_mask" src="https://github.com/user-attachments/assets/c45d92a7-d0c3-43a3-8835-48403b8a2f95" /># WebGPU Medical Volume Renderer
 
 A real-time, interactive 3D volume renderer for medical imaging data (NIFTI), built from first principles using the WebGPU API. This project explores advanced visualization techniques by applying computational geometry and calculus directly on the GPU to enhance anatomical structures.
 
@@ -39,6 +39,32 @@ The entire rendering pipeline is built from scratch, demonstrating a fundamental
     -   **Hessian-Based Curvature Analysis:** Uses the second derivative (Hessian) to distinguish between different shapes (e.g., planes, tubes, spheres), allowing for more sophisticated tissue classification and visualization.
 -   **Interactive Transfer Function:** A GUI allows for real-time control over the opacity and color mapping of different tissues, enabling dynamic exploration of the data.
 -   **NIFTI File Support:** Includes Python scripts and JavaScript helpers to parse, process, and load data from the NIFTI file format, a standard in medical imaging research.
+
+## 🧠 Deep Learning Integration: Automated Skull-Stripping
+
+To enhance the diagnostic utility of the renderer, I engineered a deep learning pipeline to automatically isolate brain tissue from non-brain anatomy (skull, eyes, background).
+
+### The Architecture
+*   **Model:** Custom U-Net Convolutional Neural Network (CNN).
+*   **Training:** Built in TensorFlow/Keras, utilizing a **Curriculum Learning** strategy. The model was first pre-trained on 2D Sobel edge maps to learn structural gradients, then fine-tuned on full 3D volumetric data for spatial coherence.
+*   **Data:** Proprietary "Golden Set" manually segmented using ITK-SNAP to ensure high-fidelity ground truth.
+
+### Performance & Accuracy
+The custom U-Net model demonstrates robust segmentation capabilities, achieving **97% accuracy** on the validation dataset. This high-fidelity segmentation allows for precise isolation of the brain tissue, serving as a reliable ground truth for the visualization engine.
+<table style="width: 100%;">
+  <tr>
+    <td style="width: 50%; text-align: center;">
+      <img width="800" height="400" alt="slice_330_original_vs_predicted" src="https://github.com/user-attachments/assets/74bf65a6-741f-42f2-8f44-8fd85d88f758" />
+      <p align="center"><b>Edge detection using sobel filter.</b></p>
+    </td>
+    <td style="width: 50%; text-align: center;">
+     <img width="1000" height="500" alt="slice_330_original_with_processed_mask" src="https://github.com/user-attachments/assets/d708be1e-b249-4dff-bc70-c54569f0aba9" />
+      <p align="center"><b>Full brain tissue mask result from fine tuning.</b></p>
+    </td>
+  </tr>
+</table>
+
+**Note:** The repository currently reflects the integration of the pre-trained model into the visualization engine. The source code for the model architecture and training pipeline is being refactored and will be uploaded shortly.
 
 ## Vision: Towards a Digital Twin
 
