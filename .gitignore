@@ -30,6 +30,8 @@ public/sub-03
 *nii.gz 
 *.png
 *.zip
+*.bin
+src/shaders/random
 public/CHANGES
 public/dataset_description.json
 public/predict/preds_01
