@@ -28,7 +28,10 @@ export default class Engine {
         }
 
         const device = await adapter.requestDevice({
-            requiredFeatures: ["float32-filterable"]
+            requiredFeatures: ["float32-filterable"], 
+            requiredLimits: {
+                maxBufferSize: adapter.limits.maxBufferSize
+            }
         });
         return device;
     }
