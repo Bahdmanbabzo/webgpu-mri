@@ -8,3 +8,57 @@ canvas {
     padding-top: 2rem;
     padding-bottom: 2rem;
 }
+
+#upload-container {
+    position: absolute;
+    top: 20px; 
+    left: 50%;
+    display: flex;
+    align-items: center;
+    gap: 15px; /* Spacing between button and text */
+    z-index: 10;
+}
+
+/* 1. Hide the ugly default "Choose File" input */
+input[type="file"] {
+    display: none;
+}
+
+/* 2. Style the label to look like a modern button */
+.custom-file-upload {
+    display: inline-block;
+    padding: 8px 16px;
+    background: linear-gradient(145deg, #2a2a2a, #333333);
+    color: #e0e0e0;
+    border: 1px solid #444;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+}
+
+/* Hover effects */
+.custom-file-upload:hover {
+    background: #444;
+    border-color: #00ffea; /* Neon cyan border on hover */
+    color: #fff;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 255, 234, 0.15);
+}
+
+/* Active/Click effects */
+.custom-file-upload:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+#loading-text {
+    color: #00ffea;
+    font-family: monospace;
+    font-size: 14px;
+}

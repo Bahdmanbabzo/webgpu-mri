@@ -182,7 +182,7 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4f {
         let texCoord: vec3f = samplePos + vec3f(0.5); 
         
         // If the voxel's X coordinate is above the slice threshold, make it invisible.
-        if (texCoord.z >= params.misc.x) {
+        if (texCoord.x >= params.misc.x) {
              t = t + stepSize;
              continue;
         }

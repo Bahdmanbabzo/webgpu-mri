@@ -3,11 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="styles.css" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Vite App</title>
   </head>
   <body style="background-color: black;">
+    <div id="upload-container">
+      <label for="nifti-upload" class="custom-file-upload">
+        Upload NIfTI (.nii.gz)
+      </label>
+      <input type="file" id="nifti-upload" accept=".nii,.nii.gz" />
+      <span id="loading-text"></span>
+    </div>
     <canvas id="canvas" height="500" width="500"></canvas>
     <script type="module" src="/src/main.js"></script>
   </body>
