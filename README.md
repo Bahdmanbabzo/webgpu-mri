@@ -146,5 +146,3 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 -   LinkedIn: [linkedin.com/in/oserebameh-beckley](https://linkedin.com/in/oserebameh-beckley)
 -   GitHub: [github.com/Bahdmanbabzo](https://github.com/Bahdmanbabzo)
-
-A 4th-year medical student with a deep passion for applying computer graphics and AI to solve complex problems in healthcare.
